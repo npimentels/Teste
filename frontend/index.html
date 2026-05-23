@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mente em Rede</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <!-- cursor piscando idle -->
+  <div id="idle-cursor">_</div>
+
+  <!-- barra superior discreta -->
+  <header id="topbar">
+    <span id="site-title">mente em rede</span>
+    <div id="topbar-actions">
+      <button id="btn-search" title="buscar (/)">&#x2315;</button>
+      <button id="btn-filter" title="filtrar por data">&#x25A1;</button>
+      <button id="btn-write" title="escrever (ctrl+space)">&#x2295;</button>
+    </div>
+  </header>
+
+  <!-- overlay de busca -->
+  <div id="search-overlay" class="hidden">
+    <input id="search-input" type="text" placeholder="buscar pensamentos..." autocomplete="off" />
+    <div id="search-results"></div>
+  </div>
+
+  <!-- overlay de filtro por data -->
+  <div id="filter-overlay" class="hidden">
+    <label>de <input id="filter-from" type="date" /></label>
+    <label>até <input id="filter-to" type="date" /></label>
+    <button id="btn-apply-filter">aplicar</button>
+    <button id="btn-clear-filter">limpar</button>
+  </div>
+
+  <!-- overlay de escrita -->
+  <div id="write-overlay" class="hidden">
+    <div id="write-container">
+      <textarea
+        id="thought-input"
+        placeholder="um pensamento solto..."
+        spellcheck="false"
+      ></textarea>
+      <div id="write-footer">
+        <span id="write-hint">shift+enter para parágrafo &nbsp;·&nbsp; esc para fechar</span>
+        <button id="btn-release">soltar pensamento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- overlay de auth -->
+  <div id="auth-overlay" class="hidden">
+    <div id="auth-container">
+      <input id="password-input" type="password" placeholder="senha" autocomplete="off" />
+      <button id="btn-auth">entrar</button>
+      <p id="auth-error"></p>
+    </div>
+  </div>
+
+  <!-- toast de feedback -->
+  <div id="toast" class="hidden"></div>
+
+  <script src="main.js"></script>
+</body>
+</html>
