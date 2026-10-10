@@ -222,7 +222,7 @@ export function underwaterPatch(volume: TankVolume, waterColor: THREE.Color, den
       {
         float topFade = smoothstep(uTankMin.y, uTankMax.y, vPatchWorld.y);
         float cs = aquaCaustic(vPatchWorld.xz * 0.9 + vPatchWorld.y * 0.2, uTime * 1.2);
-        totalEmissiveRadiance += vec3(0.55, 0.95, 1.0) * cs * (0.18 + 0.3 * topFade) * uTankLight;
+        totalEmissiveRadiance += vec3(0.55, 0.95, 1.0) * cs * (0.1 + 0.2 * topFade) * uTankLight;
       }`,
     fragmentFinal: /* glsl */ `
       {

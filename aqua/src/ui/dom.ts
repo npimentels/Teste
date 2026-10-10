@@ -34,7 +34,8 @@ export function aeroButton(label: string, onClick: () => void, sounds: UiSounds,
 export function setScreenVisible(screen: HTMLElement, visible: boolean): void {
   if (visible) {
     screen.hidden = false;
-    requestAnimationFrame(() => screen.classList.add('visible'));
+    void screen.offsetWidth; // force a reflow so the opacity transition starts from 0
+    screen.classList.add('visible');
   } else {
     screen.classList.remove('visible');
     screen.hidden = true;

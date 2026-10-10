@@ -49,6 +49,7 @@ export class Game {
   private time = 0;
   private last = performance.now();
   private zone: ZoneId | null = null;
+  private pausedAt = 0;
   private hintsShown = false;
   /** Test hook: lets automated runs play without pointer lock (only with ?debug). */
   debugNoLock = false;
@@ -233,10 +234,12 @@ export class Game {
   private pauseGame(message = ''): void {
     if (this.state !== 'playing') return;
     this.state = 'paused';
+    this.pausedAt = performance.now();
     this.input.clear();
     this.interaction.clearFocus();
     this.hud.setCaptureMessage(false);
     this.audio.setPaused(true);
+    this.exitLock();
     this.pause.show(message);
   }
 
@@ -319,7 +322,7 @@ export class Game {
       if (this.state === 'playing' && !this.locked) this.requestLock();
     });
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape' && this.state === 'paused' && !this.settingsPanel.root.classList.contains('visible')) {
+      if (e.code === 'Escape' && this.state === 'paused' && !this.settingsPanel.root.classList.contains('visible') && performance.now() - this.pausedAt > 400) {
         // Browsers release the lock on Esc themselves; a second Esc resumes.
         this.resume();
       } else if (e.code === 'Escape' && this.state === 'playing' && this.debugNoLock) {

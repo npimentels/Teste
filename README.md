@@ -138,3 +138,9 @@ curl -X POST http://localhost:5000/api/thoughts \
 # listar
 curl http://localhost:5000/api/thoughts
 ```
+
+---
+
+## AQUA: Dream of Tomorrow (jogo 3D)
+
+Este repositório também contém, na pasta [`aqua/`](aqua/), o jogo de exploração em primeira pessoa **AQUA: Dream of Tomorrow** (Three.js + Vite + TypeScript). Veja [`aqua/README.md`](aqua/README.md) para instalação, controles e limitações.

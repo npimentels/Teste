@@ -25,9 +25,11 @@ export class StaticBatcher {
     g.applyMatrix4(matrix);
     if (!g.attributes.normal) g.computeVertexNormals();
     if (material.userData.worldUV === true) g = Materials.boxUV(g, 1);
+    const keepColor = (material as THREE.MeshStandardMaterial).vertexColors === true;
     for (const name of Object.keys(g.attributes)) {
-      if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+      if (name !== 'position' && name !== 'normal' && name !== 'uv' && !(keepColor && name === 'color')) g.deleteAttribute(name);
     }
+    if (keepColor && !g.attributes.color) g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(1), 3));
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     g.clearGroups();
     this.entries.push({ geometry: g, material, cast, receive });

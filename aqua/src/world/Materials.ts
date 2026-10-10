@@ -44,7 +44,7 @@ export class Materials {
     const wallTex = assets.wallPanels();
     wallTex.repeat.set(0.4, 0.4);
     this.wallPanels = new THREE.MeshStandardMaterial({ name: 'wallPanels', color: 0xffffff, map: wallTex, roughness: 0.5 });
-    this.floorTile = new THREE.MeshStandardMaterial({ name: 'floorTile', map: floorTex, roughness: 0.24, metalness: 0, envMapIntensity: 0.9 });
+    this.floorTile = new THREE.MeshStandardMaterial({ name: 'floorTile', map: floorTex, roughness: 0.28, metalness: 0, envMapIntensity: 0.6, color: 0xfffdf8 });
     this.wetTile = new THREE.MeshStandardMaterial({ name: 'wetTile', map: floorTex, color: 0xd6eef4, roughness: 0.06, envMapIntensity: 1.4 });
     const pav = assets.paving();
     pav.repeat.set(0.18, 0.18);
