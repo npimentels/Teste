@@ -11,6 +11,15 @@ Feito com **Three.js**, **Vite** e **TypeScript**. Toda a arte (arquitetura, pla
 - Node.js 20 ou superior (desenvolvido e testado com Node 22.22 / npm 10.9)
 - Navegador de desktop com **WebGL 2** (Chrome, Edge, Firefox ou Safari recentes), mouse e teclado
 
+## Jeito mais fácil: clique duplo
+
+Com o Node.js instalado, abra a pasta `aqua` e dê **dois cliques** em:
+
+- **Windows:** `Jogar AQUA.bat`
+- **macOS:** `jogar-aqua.command` (na primeira vez: botão direito → Abrir, por causa da proteção do Gatekeeper)
+
+Na primeira execução o atalho instala as dependências; depois disso ele só liga o servidor e abre o jogo no navegador. **Para sair**, feche a aba do navegador e a janela do terminal que o atalho abriu.
+
 ## Instalação e execução
 
 ```bash

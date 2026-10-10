@@ -5,6 +5,7 @@
   "description": "AQUA: Dream of Tomorrow — jogo 3D de exploração em primeira pessoa (Three.js + Vite + TypeScript)",
   "type": "module",
   "scripts": {
+    "jogar": "vite --open",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
