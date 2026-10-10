@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { WorldContext } from './WorldContext';
+import { yawFacing } from '../systems/Seats';
 import { LAYOUT } from './WorldLayout';
 import { FountainEmitter, WaterStream } from '../environment/ParticleSystem';
 import { WATER_LOOKS, type WaterBody, type WaterSystem } from '../environment/WaterSystem';
@@ -294,12 +295,17 @@ export class Atrium implements Updatable {
 
     // ---- Lounge facing the glass view ---------------------------------------------------------
     crescentSofa(b, 0, 0, 12.4, 2.95, 3.33, m.fabricCobalt, 'out');
+    for (const a of [3.0, 3.14, 3.28]) {
+      const [sx, sz] = polar(12.55, a);
+      ctx.addSeat({ id: `atrium-sofa-${a}`, x: sx, y: 0.49, z: sz, yaw: yawFacing(Math.cos(a), Math.sin(a)) });
+    }
     const [rx, rz] = polar(13.6, Math.PI);
     rug(b, rx, rz, 1.6);
     glassTable(b, rx, rz, 0.55, 0.42);
     for (const a of [2.9, 3.38]) {
       const [cx, cz] = polar(14.3, a);
       eggChair(b, cx, cz, Math.atan2(rx - cx, rz - cz), m.whiteCeramic, m.fabricCyan);
+      ctx.addSeat({ id: `atrium-egg-${a}`, x: cx, y: 0.46, z: cz, yaw: yawFacing(rx - cx, rz - cz) });
     }
     // ---- Reception & information -----------------------------------------------------------
     receptionDesk(b, 0, 0, 12.3, 0.98, 1.3, welcomeScreen(ctx));

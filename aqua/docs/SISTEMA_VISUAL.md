@@ -41,13 +41,18 @@ Para receber um reflexo local (probe), **clone** o material da zona, como o Átr
 | `lightCove` | Sanca branca que esconde uma fita emissiva (luz indireta na parede) |
 | `crescentRibs` | Nervuras em crescente sob o teto (profundas na parede, finas no óculo) |
 | `floorInlay` | Anéis incrustados no piso |
+| `treeColumn` | Coluna-árvore branca que se abre em copa sob a cobertura (estações) |
+| `straightStair` | Escada reta com degraus, rampa de colisão e guarda-corpos de vidro |
+| `slopedBalustrade` | Guarda-corpo inclinado com colisão por segmentos |
 
 Todas aceitam parâmetros (alturas, raios, quantidade) para evitar repetição evidente.
 
 ## 4. Mobiliário e objetos (`Furniture.ts`)
 
 `crescentSofa`, `glassTable`, `eggChair`, `rug`, `planterBowl`, `bubbleLamp`, `recycleBins`, `waterDispenser`,
-`receptionDesk`, `infoTotem` (com mapa do complexo e "você está aqui"), `lilyPads`.
+`receptionDesk`, `infoTotem` (com mapa do complexo e "você está aqui"), `lilyPads`, `teardropLamp` (luminária-gota
+suspensa), `bench` (banco reto que devolve os pontos de assento para o sistema `Seats`).
+Assentos: qualquer móvel registra pontos com `ctx.addSeat({x, y, z, yaw, parent?})`; não existe código por banco.
 Todos têm colisão coerente (encostos e mesas não são "escaláveis"), são fundidos por material e reutilizam geometria.
 
 ## 5. Sinalização e tipografia
@@ -57,6 +62,11 @@ Todos têm colisão coerente (encostos e mesas não são "escaláveis"), são fu
 - Cor da bolha por destino: Jardins `#3FAE66`, Galeria `#28C5DF`, Esplanada `#9BE22D`, Terraço `#087DAE`.
 - Nos interiores, a sinalização vai integrada à verga dos portais (`portal(...)`); placas em poste ficam para áreas externas.
 - Interface (HUD/menus): teclas e botão principal em cobalto, sublinhado limão no título da zona.
+- **Aqua Metro** (`MetroSignage.ts`): painel cobalto arredondado com brilho superior e borda branca, título
+  bilíngue (PT grande, EN menor), selo "2 Linha", pictograma (trem, sanitário, saída) e seta. Painéis de partidas
+  em azul-escuro com linha destacada em ciano; relógio digital; mapa da rede com estações abertas e "em breve".
+- **Mercado Aqua**: placas em pílula branca com borda na cor da seção (cobalto bebidas, limão hortifruti/sucos) e
+  emblema de gota; etiquetas de preço em faixa limão.
 
 ## 6. Regras de iluminação por ambiente (`Palette.ts → AMBIENCE`)
 

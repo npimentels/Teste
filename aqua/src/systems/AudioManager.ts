@@ -28,7 +28,25 @@ export type SfxName =
   | 'impact'
   | 'valve'
   | 'zone'
-  | 'error';
+  | 'error'
+  | 'doorOpen'
+  | 'doorClose'
+  | 'doorHold'
+  | 'trainDepart'
+  | 'metroChime'
+  | 'sit'
+  | 'stand'
+  | 'vendSelect'
+  | 'vendMotor'
+  | 'vendDrop'
+  | 'vendDone'
+  | 'faucet'
+  | 'soap'
+  | 'dryer'
+  | 'flush'
+  | 'stallDoor'
+  | 'fridgeOpen'
+  | 'fridgeClose';
 
 export type WaterSoundKind = 'fountain' | 'stream' | 'waterfall' | 'bubbles' | 'hum';
 
@@ -62,6 +80,19 @@ class SpatialWaterSource implements SoundHandle {
   setActive(on: boolean): void {
     this.active = on;
     this.manager.refreshSource(this);
+  }
+}
+
+/** Looping train rumble + traction whine whose loudness and pitch follow the train speed. */
+export class TrainSound {
+  gain: GainNode | null = null;
+  panner: PannerNode | null = null;
+  whine: OscillatorNode | null = null;
+  rumbleFilter: BiquadFilterNode | null = null;
+  constructor(private readonly manager: AudioManager) {}
+
+  update(x: number, y: number, z: number, speed: number): void {
+    this.manager.updateTrain(this, x, y, z, speed);
   }
 }
 
@@ -99,6 +130,8 @@ export class AudioManager {
   private paused = false;
   private listenerPos: Vec3 = { x: 0, y: 0, z: 0 };
   private lastHover = 0;
+  private readonly trains: TrainSound[] = [];
+  private lastAnnouncement = '';
 
   get ready(): boolean {
     return this.ctx !== null && this.ctx.state === 'running';
@@ -141,6 +174,7 @@ export class AudioManager {
     this.brown = this.makeNoise(true);
     this.applyVolumes();
     for (const s of this.sources) this.attachSource(s);
+    for (const tr of this.trains) this.attachTrain(tr);
     this.buildZoneBeds();
     this.setZone(this.zone, true);
     this.musicTime = ctx.currentTime + 0.5;
@@ -212,6 +246,89 @@ export class AudioManager {
     this.sources.push(s);
     if (this.ctx) this.attachSource(s);
     return s;
+  }
+
+  /** Positional train sound (rumble + traction whine), driven every frame by the metro. */
+  addTrainSound(): TrainSound {
+    const tr = new TrainSound(this);
+    this.trains.push(tr);
+    if (this.ctx) this.attachTrain(tr);
+    return tr;
+  }
+
+  private attachTrain(tr: TrainSound): void {
+    const ctx = this.ctx!;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    const panner = this.makePanner({ x: 0, y: 0, z: 0 }, 6, 0.9, 200);
+    gain.connect(panner);
+    panner.connect(this.sfxBus);
+    const src = ctx.createBufferSource();
+    src.buffer = this.brown;
+    src.loop = true;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 200;
+    lp.Q.value = 0.8;
+    const rg = ctx.createGain();
+    rg.gain.value = 0.9;
+    src.connect(lp).connect(rg).connect(gain);
+    src.start();
+    // electric traction whine (the soft rising tone of a modern EMU)
+    const whine = ctx.createOscillator();
+    whine.type = 'triangle';
+    whine.frequency.value = 120;
+    const wg = ctx.createGain();
+    wg.gain.value = 0.05;
+    whine.connect(wg).connect(gain);
+    whine.start();
+    tr.gain = gain;
+    tr.panner = panner;
+    tr.whine = whine;
+    tr.rumbleFilter = lp;
+  }
+
+  updateTrain(tr: TrainSound, x: number, y: number, z: number, speed: number): void {
+    if (!this.ctx || !tr.gain || !tr.panner) return;
+    const t = this.ctx.currentTime;
+    const p = tr.panner;
+    if (p.positionX) {
+      p.positionX.setTargetAtTime(x, t, 0.05);
+      p.positionY.setTargetAtTime(y, t, 0.05);
+      p.positionZ.setTargetAtTime(z, t, 0.05);
+    } else p.setPosition(x, y, z);
+    const k = Math.min(1, speed / 22);
+    tr.gain.gain.setTargetAtTime(speed > 0.05 ? 0.12 + 0.55 * k : 0.04, t, 0.2);
+    tr.whine?.frequency.setTargetAtTime(110 + 520 * k, t, 0.2);
+    tr.rumbleFilter?.frequency.setTargetAtTime(160 + 420 * k, t, 0.2);
+  }
+
+  /**
+   * Short spoken station announcement (Web Speech API, pt-BR) preceded by a chime. Fully
+   * optional: if speech synthesis is unavailable or muted, only the chime plays.
+   * The same text is never repeated back to back.
+   */
+  announce(text: string): void {
+    if (!this.ready || this.paused) return;
+    if (text === this.lastAnnouncement) return;
+    this.lastAnnouncement = text;
+    const vol = this.volumes.sfx ** 2 * 0.55;
+    if (vol < 0.02) return;
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'pt-BR';
+      u.rate = 1.02;
+      u.pitch = 1.08;
+      u.volume = Math.min(1, vol);
+      const voice = synth.getVoices().find((v) => v.lang?.toLowerCase().startsWith('pt'));
+      if (voice) u.voice = voice;
+      window.setTimeout(() => synth.speak(u), 900);
+    } catch {
+      /* speech is a nicety */
+    }
   }
 
   refreshSource(s: SpatialWaterSource): void {
@@ -361,6 +478,18 @@ export class AudioManager {
       loopNoise(true, [['lowpass', 260, 1.2]], 0.22, out, 0.07, 0.08);
       loopNoise(false, [['bandpass', 900, 3]], 0.004, out, 0.2, 0.003);
     });
+    bed('metro', (out) => {
+      loopNoise(true, [['lowpass', 220, 0.7]], 0.06, out); // large hall air
+      loopNoise(false, [['bandpass', 1400, 0.6]], 0.008, out, 0.04, 0.004); // distant crowd-free murmur of ventilation
+    });
+    bed('park', (out) => {
+      loopNoise(false, [['lowpass', 600, 0.5]], 0.055, out, 0.07, 0.03);
+      loopNoise(true, [['lowpass', 380, 0.6]], 0.1, out, 0.1, 0.08);
+    });
+    bed('market', (out) => {
+      loopNoise(true, [['lowpass', 140, 0.8]], 0.06, out); // fridge compressors
+      loopNoise(false, [['bandpass', 3000, 1.5]], 0.004, out);
+    });
     bed('terrace', (out) => {
       loopNoise(true, [['lowpass', 520, 0.6]], 0.18, out, 0.12, 0.14); // distant surf swells
       loopNoise(false, [['bandpass', 550, 0.8]], 0.035, out, 0.06, 0.025); // wind
@@ -399,7 +528,7 @@ export class AudioManager {
       }
     }
     if (this.volumes.ambient > 0.001 && !this.paused) {
-      if ((this.zone === 'gardens' || this.zone === 'exterior' || this.zone === 'terrace') && now > this.nextBird) {
+      if ((this.zone === 'gardens' || this.zone === 'exterior' || this.zone === 'terrace' || this.zone === 'park') && now > this.nextBird) {
         this.playBird(now + 0.05);
         this.nextBird = now + 2 + Math.random() * 6;
       }
@@ -628,6 +757,80 @@ export class AudioManager {
       case 'error':
         this.tone(t, 330, 0.12, 0.06, g, 'triangle');
         this.tone(t + 0.1, 262, 0.16, 0.06, g, 'triangle');
+        break;
+      case 'doorOpen':
+        // pneumatic release + soft two-tone
+        this.noiseBurst(t, 0.5, 0.1, g, 'bandpass', 2400, 700);
+        this.tone(t + 0.05, midiHz(76), 0.5, 0.05, g, 'sine', true);
+        this.tone(t + 0.3, midiHz(81), 0.6, 0.05, g, 'sine', true);
+        break;
+      case 'doorClose':
+        this.noiseBurst(t, 0.45, 0.09, g, 'bandpass', 900, 2600);
+        this.tone(t + 0.4, 140, 0.18, 0.12, g, 'sine');
+        break;
+      case 'doorHold':
+        this.tone(t, midiHz(81), 0.12, 0.07, g, 'square');
+        this.tone(t + 0.18, midiHz(81), 0.12, 0.07, g, 'square');
+        this.tone(t + 0.36, midiHz(81), 0.12, 0.07, g, 'square');
+        break;
+      case 'trainDepart':
+        this.sweep(t, 90, 420, 3.5, 0.05, g);
+        this.noiseBurst(t, 1.2, 0.05, g, 'lowpass', 300, 900);
+        break;
+      case 'metroChime':
+        // three-note station chime (the "ding-dong-ding" of a 2000s metro)
+        [76, 72, 79].forEach((m, i) => this.tone(t + i * 0.32, midiHz(m), 1.2, 0.08, g, 'sine', true));
+        break;
+      case 'sit':
+        this.noiseBurst(t, 0.18, 0.06, g, 'lowpass', 700, 300);
+        this.tone(t, 120, 0.12, 0.05, g, 'sine');
+        break;
+      case 'stand':
+        this.noiseBurst(t, 0.14, 0.04, g, 'lowpass', 500, 900);
+        break;
+      case 'vendSelect':
+        this.tone(t, 1760, 0.06, 0.06, g, 'square');
+        break;
+      case 'vendMotor':
+        // spiral coil motor turning
+        for (let i = 0; i < 6; i++) this.noiseBurst(t + i * 0.13, 0.1, 0.05, g, 'bandpass', 600, 400);
+        this.tone(t, 70, 0.8, 0.07, g, 'sawtooth');
+        break;
+      case 'vendDrop':
+        this.tone(t, 180, 0.14, 0.16, g, 'sine');
+        this.noiseBurst(t, 0.12, 0.12, g, 'bandpass', 1500, 600);
+        this.tone(t + 0.12, 140, 0.1, 0.08, g, 'sine');
+        break;
+      case 'vendDone':
+        [84, 88, 91].forEach((m, i) => this.tone(t + i * 0.09, midiHz(m), 0.25, 0.05, g, 'square'));
+        break;
+      case 'faucet':
+        this.noiseBurst(t, 1.6, 0.1, g, 'bandpass', 3000, 2400);
+        for (let i = 0; i < 5; i++) this.blip(t + Math.random() * 1.2, g, 0.02);
+        break;
+      case 'soap':
+        this.noiseBurst(t, 0.12, 0.06, g, 'lowpass', 1200, 400);
+        this.sweep(t + 0.05, 500, 220, 0.12, 0.04, g);
+        break;
+      case 'dryer':
+        this.noiseBurst(t, 3.2, 0.12, g, 'lowpass', 2600, 1800);
+        this.sweep(t, 180, 260, 3.0, 0.03, g);
+        break;
+      case 'flush':
+        this.noiseBurst(t, 2.6, 0.16, g, 'lowpass', 1600, 300);
+        for (let i = 0; i < 10; i++) this.blip(t + 0.3 + Math.random() * 2, g, 0.025);
+        break;
+      case 'stallDoor':
+        this.tone(t, 220, 0.08, 0.1, g, 'sine');
+        this.noiseBurst(t, 0.06, 0.06, g, 'bandpass', 1800, 900);
+        break;
+      case 'fridgeOpen':
+        this.noiseBurst(t, 0.25, 0.05, g, 'lowpass', 1800, 600);
+        this.tone(t + 0.02, 90, 0.4, 0.04, g, 'sine');
+        break;
+      case 'fridgeClose':
+        this.tone(t, 110, 0.12, 0.12, g, 'sine');
+        this.noiseBurst(t, 0.08, 0.07, g, 'lowpass', 900, 300);
         break;
     }
   }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { WorldContext } from './WorldContext';
+import { yawFacing } from '../systems/Seats';
 import { LAYOUT } from './WorldLayout';
 import { BubbleEmitter } from '../environment/ParticleSystem';
 import { LightGroup } from '../environment/LightingSystem';
@@ -269,6 +270,11 @@ export class AquariumGallery implements Updatable {
     ] as Array<[number, number]>) {
       b.arcWall(m.whiteCeramic, RM.x, RM.z, 4.3, 4.8, a0, a1, 0, 0.44, { collide: 'stone', bevel: 0.07 });
       b.arcWall(m.cushion, RM.x, RM.z, 4.35, 4.75, a0 + 0.01, a1 - 0.01, 0.44, 0.06, { bevel: 0.03 });
+      const n = Math.max(1, Math.floor(((a1 - a0) * 4.55) / 0.7));
+      for (let k = 0; k < n; k++) {
+        const a = a0 + ((a1 - a0) * (k + 0.5)) / n;
+        ctx.addSeat({ id: `gallery-bench-${a.toFixed(2)}`, x: RM.x + Math.cos(a) * 4.55, y: 0.5, z: RM.z + Math.sin(a) * 4.55, yaw: yawFacing(-Math.cos(a), -Math.sin(a)) });
+      }
     }
 
     // ---- Lights --------------------------------------------------------------------------

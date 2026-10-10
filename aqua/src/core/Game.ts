@@ -17,6 +17,7 @@ import { Credits } from '../ui/Credits';
 import type { UiSounds } from '../ui/dom';
 import { LAYOUT, ZONE_INFO, surfaceAt, zoneAt } from '../world/WorldLayout';
 import { AMBIENCE } from '../world/Palette';
+import { SeatController } from '../systems/Seats';
 
 export type GameState = 'loading' | 'menu' | 'playing' | 'paused';
 
@@ -27,6 +28,9 @@ const ZONE_AMBIENCE: Record<ZoneId, keyof typeof AMBIENCE> = {
   gardens: 'garden',
   terrace: 'terrace',
   exterior: 'open',
+  metro: 'hall',
+  park: 'garden',
+  market: 'hall',
 };
 
 const FOOTSTEP_SFX: Record<FootSurface, SfxName> = {
@@ -51,6 +55,7 @@ export class Game {
   readonly player: PlayerController;
   readonly hud: HUD;
   private interaction!: InteractionSystem;
+  readonly seats: SeatController;
   private readonly menu: MainMenu;
   private readonly pause: PauseMenu;
   private readonly settingsPanel: SettingsPanel;
@@ -65,6 +70,7 @@ export class Game {
   debugNoLock = false;
   private readonly forward = new THREE.Vector3();
   private readonly focus = new THREE.Vector3();
+  private readonly seatEye = new THREE.Vector3();
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: false });
@@ -111,6 +117,10 @@ export class Game {
       },
     );
     this.player.setSpawn(LAYOUT.spawn.x, LAYOUT.spawn.y, LAYOUT.spawn.z, LAYOUT.spawn.yaw);
+    this.seats = new SeatController(this.player);
+    this.seats.onSit = (seat) => this.audio.play('sit', { position: seat.position, volume: 0.7 });
+    this.seats.onStand = (seat) => this.audio.play('stand', { position: seat.position, volume: 0.6 });
+    this.world.onCard = (html, seconds) => this.hud.showCard(html, seconds);
 
     const sounds: UiSounds = {
       click: () => this.audio.play('click'),
@@ -158,9 +168,10 @@ export class Game {
       onProgress(f, label);
       await new Promise((r) => requestAnimationFrame(() => r(undefined)));
     };
-    await this.world.build(progress);
+    await this.world.build(progress, this.seats);
     this.interaction = new InteractionSystem(this.camera, this.world.collision, this.world.physics, this.hud, {
       onInteract: (target) => {
+        if (target.kind === 'carry') return;
         if (target.kind === 'toggle') {
           const on = (target as unknown as { on: boolean }).on;
           this.audio.play(on ? 'toggleOn' : 'toggleOff', { position: target.position });
@@ -170,6 +181,10 @@ export class Game {
       onDrop: () => undefined,
     });
     for (const i of this.world.interactables) this.interaction.register(i);
+    this.interaction.addModal(this.seats);
+    for (const m of this.world.modals) this.interaction.addModal(m);
+    this.interaction.blocked = () => this.player.busy;
+    this.world.zones.metro?.bindPlayer(this.player, this.seats);
 
     this.settings.subscribe((s, changed) => this.applySettings(s, changed));
     this.applySettings(this.settings.get());
@@ -213,6 +228,7 @@ export class Game {
   private startExploration(): void {
     void this.audio.init().then(() => this.applySettings(this.settings.get()));
     this.world.reset();
+    if (this.seats.current) this.seats.stand();
     this.player.respawn();
     this.zone = null;
     this.menu.hide();
@@ -383,7 +399,14 @@ export class Game {
     sharedTime.value = this.time;
 
     const active = this.state === 'playing' && (this.locked || this.debugNoLock);
+    // the metro runs on its own clock (also behind the menu); it is frozen while paused
+    if (this.state !== 'paused') this.world.zones.metro?.step(dt, active);
     if (active) {
+      const modal = this.interaction.activeModal;
+      this.player.locked = !!modal && modal.locksMovement === true;
+      // seated in a moving train: keep the eye attached to the seat
+      const seat = this.seats.current;
+      if (seat) this.player.updateSeatEye(seat.eye(this.seatEye));
       this.player.update(dt, this.input);
       this.interaction.update(this.input);
       this.world.physics.updateWithPlayer(dt, this.camera, {
@@ -401,6 +424,7 @@ export class Game {
       this.input.consumeClicks();
     }
 
+    this.world.viewer.copy(this.camera.position);
     this.world.update(dt, this.time);
     const amb = this.state === 'menu' || this.zone === null ? 'hall' : ZONE_AMBIENCE[this.zone];
     this.world.lighting.setAmbience(AMBIENCE[amb]);
@@ -463,6 +487,44 @@ export class Game {
         calls: this.renderer.info.render.calls,
         triangles: this.renderer.info.render.triangles,
       }),
+      /** Renders one frame now and returns its draw calls / triangles. */
+      measure: () => {
+        this.world.viewer.copy(this.camera.position);
+        this.world.update(0, this.time);
+        // accumulate over the whole frame (mirror / transmission passes call render() again)
+        const info = this.renderer.info;
+        info.autoReset = false;
+        info.reset();
+        this.renderer.render(this.world.scene, this.camera);
+        const out = { calls: info.render.calls, triangles: info.render.triangles };
+        info.autoReset = true;
+        return out;
+      },
+      train: () => {
+        const m = this.world.zones.metro;
+        if (!m) return null;
+        const s = m.service;
+        return { phase: s.phase, z: +s.z.toFixed(2), v: +s.v.toFixed(2), doors: +s.doors.toFixed(2), stop: s.stop.id, aboard: m.playerAboard(), seated: this.seats.current?.id ?? null };
+      },
+      /** Fast-forwards the world (metro service + player carried) by `seconds` at 30 Hz. */
+      stepWorld: (seconds: number) => {
+        const n = Math.round(seconds * 30);
+        const idle = { isDown: () => false, wasPressed: () => false, consumeMouse: (o: { x: number; y: number }) => ((o.x = 0), (o.y = 0)) };
+        for (let i = 0; i < n; i++) {
+          this.world.zones.metro?.step(1 / 30, true);
+          const seat = this.seats.current;
+          if (seat) this.player.updateSeatEye(seat.eye(this.seatEye));
+          this.player.update(1 / 30, idle);
+          this.world.viewer.copy(this.camera.position);
+          this.world.update(1 / 30, (this.time += 1 / 30));
+        }
+        return this.player.position.toArray().map((v) => +v.toFixed(2));
+      },
+      /** Presses a key once through the interaction system (modal menus, E…). */
+      press: (code: string) => {
+        this.interaction.update({ ...this.input, wasPressed: (c: string) => c === code, consumeClicks: () => 0 } as unknown as Input);
+        return { focus: this.interaction.focus?.id ?? null, modal: this.interaction.activeModal ? this.interaction.activeModal.constructor.name : null };
+      },
       interactables: () => this.world.interactables.map((i) => ({ id: i.id, kind: i.kind, position: i.position.toArray() })),
       /** Steps the player synchronously at 60 Hz with the given keys held (no rendering). */
       simulate: (keys: string[], seconds: number, jumpAtFrame = -1) => {

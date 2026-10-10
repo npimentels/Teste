@@ -98,7 +98,8 @@ export class WorldBuilder {
   private readonly geometryCache = new Map<string, THREE.BufferGeometry>();
 
   constructor(
-    readonly root: THREE.Group,
+    /** Where geometry goes; zones may redirect it into their own group. */
+    public root: THREE.Group,
     readonly collision: CollisionWorld,
     readonly mats: Materials,
     readonly assets: AssetManager,

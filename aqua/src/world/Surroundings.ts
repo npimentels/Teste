@@ -18,6 +18,8 @@ export class Surroundings implements Updatable {
   private readonly materials: THREE.Material[] = [];
 
   constructor(private readonly ctx: WorldContext) {
+    const K = LAYOUT.market;
+    const inMarket = (x: number, z: number, pad: number) => x > K.x0 - pad && x < K.x1 + pad && z > K.z0 - pad && z < K.z1 + pad;
     const { builder: b, mats: m, collision } = ctx;
     collision.terrain.outline = LAYOUT.outline.map(([x, z]) => [x, z] as [number, number]);
 
@@ -41,8 +43,30 @@ export class Surroundings implements Updatable {
     this.buildCliff();
 
     // ---- Perimeter balustrade -----------------------------------------------------------
+    // (open along the Aqua Metro station, whose platform screen doors take over the edge)
     const inset = insetPolygon(LAYOUT.outline as Array<[number, number]>, 0.7);
-    b.glassRailing(inset, 0, 1.1, { closed: true });
+    const S = LAYOUT.metro.station;
+    const runs: Array<Array<[number, number]>> = [[]];
+    for (let i = 0; i < inset.length; i++) {
+      const a = inset[i];
+      const c = inset[(i + 1) % inset.length];
+      runs[runs.length - 1].push(a);
+      const eastEdge = Math.abs(a[0] - c[0]) < 0.01 && a[0] > S.x0;
+      if (!eastEdge) continue;
+      // cut [S.z0 − 0.3, S.z1 + 0.3] out of this segment (it runs along z)
+      const lo = Math.min(a[1], c[1]);
+      const hi = Math.max(a[1], c[1]);
+      const cut0 = Math.max(lo, S.z0 - 0.3);
+      const cut1 = Math.min(hi, S.z1 + 0.3);
+      if (cut1 <= cut0) continue;
+      const desc = c[1] < a[1];
+      runs[runs.length - 1].push([a[0], desc ? cut1 : cut0]);
+      runs.push([[a[0], desc ? cut0 : cut1]]);
+    }
+    // close the loop: the last run continues into the first
+    if (runs.length > 1) runs[0] = [...runs.pop()!, ...runs[0]];
+    else runs[0].push(inset[0]);
+    for (const run of runs) b.glassRailing(run, 0, 1.1);
 
     // ---- South plaza in front of the atrium -------------------------------------------
     b.ring(m.paving, 0, 0.02, 0, A.rIn + A.wallT, A.rIn + 5.5, 0.1, { a0: 0.35, a1: Math.PI - 0.35 });
@@ -51,8 +75,6 @@ export class Surroundings implements Updatable {
     for (const [x, z, r, mat] of [
       [-14, 22, 1.2, m.glossyGreen],
       [-11.5, 23.5, 0.7, m.glossyCyan],
-      [24, 20, 1.5, m.glossyCyan],
-      [26.4, 21.5, 0.8, m.whiteCeramic],
     ] as Array<[number, number, number, THREE.Material]>) {
       b.sphere(mat, x, r * 0.92, z, r);
       collision.addCylinder({ x, z, r: r * 0.95, minY: 0, maxY: r * 1.8, surface: 'stone' });
@@ -67,6 +89,7 @@ export class Surroundings implements Updatable {
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       if (x > 14 && Math.abs(z) < 11) continue;
+      if (inMarket(x, z, 2.5)) continue;
       ctx.veg.palm(x, 0, z, randRange(rng, 0.9, 1.15));
       ctx.veg.bush(x + 1.4, 0, z + 0.6, 0.8);
       ctx.veg.fern(x - 1.1, 0, z - 0.7, 1);
@@ -77,6 +100,8 @@ export class Surroundings implements Updatable {
       if (r < A.rIn + 5.8) return false;
       if (x > 15 && Math.abs(z) < 10.5 && x < 58) return false;
       if (Math.hypot(x - LAYOUT.gallery.room.x, z) < 8.5) return false;
+      if (inMarket(x, z, 1.2)) return false;
+      if (x > S.x0 - 1.5 && z > S.z0 - 1 && z < S.z1 + 5.5) return false; // station + entrance plaza
       return collision.terrain.insideOutline(x, z) && Math.abs(insetDistance(x, z)) > 1.2;
     };
     ctx.veg.grass(-36, -16, 62, 26, 2000, 0, accept);

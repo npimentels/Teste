@@ -799,3 +799,34 @@ input[type='range']:focus-visible::-webkit-slider-thumb {
     justify-content: center;
   }
 }
+
+/* modal hint sits above the carry line */
+.hud-modal {
+  bottom: 84px;
+}
+
+.hud-toast.card {
+  white-space: normal;
+  max-width: min(440px, calc(100vw - 32px));
+  border-radius: 18px;
+  text-align: left;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.hud-toast.card h3 {
+  margin: 0 0 4px;
+  color: var(--cobalt);
+  font-size: 18px;
+}
+
+.hud-toast.card .price {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(180deg, #5f93ec, #1747b5);
+}
+.hud-toast.card .card-list{margin:6px 0 0;padding-left:18px;text-align:left;font-size:13px;line-height:1.45}
+.hud-toast.card .card-list li{margin:3px 0}

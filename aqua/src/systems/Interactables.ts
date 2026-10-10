@@ -7,7 +7,7 @@ import { damp } from '../core/math';
 /** Contract shared by everything the player can aim at and use with E. */
 export interface Interactable {
   readonly id: string;
-  readonly kind: 'toggle' | 'carry';
+  readonly kind: 'toggle' | 'carry' | 'use';
   /** World position used for spatial audio feedback. */
   readonly position: THREE.Vector3;
   /** Distance along the (normalized) ray to this object, or −1 when missed / unavailable. */
@@ -339,4 +339,41 @@ function drawIcon(ctx: CanvasRenderingContext2D, icon: PanelIcon, cx: number, cy
       break;
   }
   ctx.stroke();
+}
+
+/**
+ * Generic "use" spot (faucet, soap dispenser, dryer, stall door, fridge door…): an oriented
+ * hit box, a dynamic prompt and a callback. Returning `false` from `available` hides it.
+ */
+export class UseSpot implements Interactable {
+  readonly kind = 'use' as const;
+  readonly position: THREE.Vector3;
+  private readonly half: THREE.Vector3;
+
+  constructor(
+    readonly id: string,
+    center: THREE.Vector3,
+    half: THREE.Vector3,
+    private readonly rotY: number,
+    private readonly label: () => string,
+    private readonly action: () => void,
+    readonly reach = 2.2,
+    private readonly available: () => boolean = () => true,
+  ) {
+    this.position = center.clone();
+    this.half = half.clone();
+  }
+
+  hitTest(origin: THREE.Vector3, dir: THREE.Vector3): number {
+    if (!this.available()) return -1;
+    return rayOBB(origin, dir, this.position, this.half, this.rotY);
+  }
+
+  prompt(): string {
+    return this.label();
+  }
+
+  interact(): void {
+    this.action();
+  }
 }

@@ -23,6 +23,12 @@ export class PhysicsBall implements Interactable {
   sleeping = true;
   restTime = 0;
   wasInWater = false;
+  /** Inactive objects are hidden and ignored (pooled items waiting to be dispensed). */
+  active = true;
+  /** Keep the mesh upright instead of rolling (bottles, cans…). */
+  upright = false;
+  /** Pooled objects disappear on reset instead of returning to a spawn point. */
+  pooled = false;
 
   constructor(
     readonly id: string,
@@ -36,8 +42,8 @@ export class PhysicsBall implements Interactable {
   }
 
   hitTest(origin: THREE.Vector3, dir: THREE.Vector3): number {
-    if (this.carried) return -1;
-    return raySphere(origin, dir, this.position, this.radius * 1.35);
+    if (this.carried || !this.active) return -1;
+    return raySphere(origin, dir, this.position, Math.max(0.17, this.radius * 1.35));
   }
 
   prompt(): string {
@@ -51,6 +57,24 @@ export class PhysicsBall implements Interactable {
   wake(): void {
     this.sleeping = false;
     this.restTime = 0;
+  }
+
+  /** Shows a pooled object at a position (e.g. a vending machine tray). */
+  activate(x: number, y: number, z: number): void {
+    this.active = true;
+    this.mesh.visible = true;
+    this.position.set(x, y, z);
+    this.velocity.set(0, 0, 0);
+    this.mesh.rotation.set(0, 0, 0);
+    this.wake();
+  }
+
+  deactivate(): void {
+    this.active = false;
+    this.carried = false;
+    this.mesh.visible = false;
+    this.velocity.set(0, 0, 0);
+    this.sleeping = true;
   }
 }
 
@@ -111,6 +135,10 @@ export class ObjectPhysics implements Updatable {
   reset(): void {
     this.carried = null;
     for (const b of this.balls) {
+      if (b.pooled) {
+        b.deactivate();
+        continue;
+      }
       b.carried = false;
       b.position.copy(b.spawn);
       b.velocity.set(0, 0, 0);
@@ -122,7 +150,7 @@ export class ObjectPhysics implements Updatable {
   updateWithPlayer(dt: number, camera: THREE.Camera | null, player: { position: THREE.Vector3; velocity: THREE.Vector3; radius: number; height: number } | null): void {
     if (this.carried && camera) this.updateCarried(dt, camera, this.carried);
     for (const b of this.balls) {
-      if (b.carried) continue;
+      if (b.carried || !b.active) continue;
       if (player) this.pushByPlayer(b, player);
       if (b.sleeping) continue;
       this.integrate(b, dt);
@@ -151,6 +179,10 @@ export class ObjectPhysics implements Updatable {
     if (b.position.distanceTo(tmpTarget) > 1.6) this.drop(false);
     // gentle spin while carried
     b.mesh.rotation.y += dt * 0.8;
+    if (b.upright) {
+      b.mesh.rotation.x = 0;
+      b.mesh.rotation.z = 0;
+    }
   }
 
   private integrate(b: PhysicsBall, dt: number): void {
@@ -180,7 +212,7 @@ export class ObjectPhysics implements Updatable {
     }
     // Rolling visual.
     const speed = Math.hypot(v.x, v.z);
-    if (speed > 1e-3) {
+    if (speed > 1e-3 && !b.upright) {
       tmpAxis.set(v.z, 0, -v.x).normalize();
       b.mesh.rotateOnWorldAxis(tmpAxis, (speed * dt) / b.radius);
     }
@@ -192,6 +224,10 @@ export class ObjectPhysics implements Updatable {
       v.set(0, 0, 0);
     }
     if (b.position.y < -20) {
+      if (b.pooled) {
+        b.deactivate();
+        return;
+      }
       b.position.copy(b.spawn);
       v.set(0, 0, 0);
     }
@@ -251,9 +287,10 @@ export class ObjectPhysics implements Updatable {
     const n = this.balls.length;
     for (let i = 0; i < n; i++) {
       const a = this.balls[i];
+      if (!a.active) continue;
       for (let j = i + 1; j < n; j++) {
         const c = this.balls[j];
-        if (a.sleeping && c.sleeping) continue;
+        if (!c.active || (a.sleeping && c.sleeping)) continue;
         tmpV.subVectors(c.position, a.position);
         const R = a.radius + c.radius;
         const d2 = tmpV.lengthSq();

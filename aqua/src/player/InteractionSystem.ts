@@ -5,6 +5,19 @@ import type { ObjectPhysics } from '../systems/ObjectPhysics';
 import type { Input } from '../core/Input';
 import type { HUD } from '../ui/HUD';
 
+/**
+ * A modal interaction temporarily owns the E key and the HUD prompt (sitting, vending machine
+ * menu…). While active, world interactables are not targeted.
+ */
+export interface InteractionModal {
+  readonly active: boolean;
+  /** While active, the body does not walk (mouse look still works). */
+  readonly locksMovement?: boolean;
+  prompt(): string | null;
+  hint?(): string | null;
+  update(input: Input): void;
+}
+
 export interface InteractionFeedback {
   onInteract(target: Interactable): void;
   onDrop(thrown: boolean): void;
@@ -17,6 +30,9 @@ export interface InteractionFeedback {
 export class InteractionSystem {
   private readonly items: Interactable[] = [];
   focus: Interactable | null = null;
+  private readonly modals: InteractionModal[] = [];
+  /** When this returns true no interaction is possible (e.g. scripted boarding). */
+  blocked: () => boolean = () => false;
   private readonly origin = new THREE.Vector3();
   private readonly dir = new THREE.Vector3();
 
@@ -36,7 +52,30 @@ export class InteractionSystem {
     return this.items;
   }
 
+  addModal(modal: InteractionModal): void {
+    this.modals.push(modal);
+  }
+
+  get activeModal(): InteractionModal | null {
+    return this.modals.find((m) => m.active) ?? null;
+  }
+
   update(input: Input): void {
+    const modal = this.activeModal;
+    if (modal) {
+      this.focus = null;
+      this.hud.setPrompt(modal.prompt());
+      this.hud.setModalHint(modal.hint?.() ?? null);
+      this.hud.setCarrying(null);
+      modal.update(input);
+      return;
+    }
+    this.hud.setModalHint(null);
+    if (this.blocked()) {
+      this.focus = null;
+      this.hud.setPrompt(null);
+      return;
+    }
     this.origin.copy(this.camera.position);
     this.camera.getWorldDirection(this.dir);
     let best: Interactable | null = null;

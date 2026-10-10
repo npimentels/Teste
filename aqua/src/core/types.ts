@@ -1,4 +1,4 @@
-export type ZoneId = 'atrium' | 'gardens' | 'gallery' | 'terrace' | 'exterior';
+export type ZoneId = 'atrium' | 'gardens' | 'gallery' | 'terrace' | 'exterior' | 'metro' | 'park' | 'market';
 
 export type QualityLevel = 'high' | 'economy';
 

@@ -4,7 +4,7 @@ import type { Input } from '../core/Input';
 
 /** The subset of input the controller reads (lets tests drive it without a browser). */
 export type ControlInput = Pick<Input, 'isDown' | 'wasPressed' | 'consumeMouse'>;
-import { clamp, damp } from '../core/math';
+import { angleDelta, clamp, damp, dampFactor, smoothstep } from '../core/math';
 
 export type FootSurface = 'tile' | 'grass' | 'metal' | 'water';
 
@@ -74,6 +74,16 @@ export class PlayerController {
   private fovKick = 0;
   private readonly mouse = { x: 0, y: 0 };
 
+  /** Movement frozen (modal interfaces such as vending machines); looking still works. */
+  locked = false;
+  /** Seated state: camera goes to `eye`, yaw is limited around `yaw`. */
+  private seat: { eye: THREE.Vector3; yaw: number; turning: boolean } | null = null;
+  /** 0 = standing camera, 1 = seated camera (smoothed in both directions). */
+  private seatBlend = 0;
+  private readonly lastSeatEye = new THREE.Vector3();
+  /** Short scripted walk (boarding / alighting): position eases from `from` to `to`. */
+  private scripted: { from: THREE.Vector3; to: THREE.Vector3; t: number; duration: number } | null = null;
+
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
     private readonly env: PlayerEnvironment,
@@ -100,7 +110,58 @@ export class PlayerController {
     this.stepSmooth = 0;
     this.grounded = false;
     this.airTime = 0;
+    this.seat = null;
+    this.seatBlend = 0;
+    this.scripted = null;
+    this.locked = false;
     this.syncCamera(0);
+  }
+
+  get seated(): boolean {
+    return this.seat !== null;
+  }
+
+  get busy(): boolean {
+    return this.seat !== null || this.scripted !== null;
+  }
+
+  /** Sits down: the body stays where it is (a valid spot), only the camera moves to the seat. */
+  sit(eye: THREE.Vector3, yaw: number): void {
+    this.seat = { eye: eye.clone(), yaw, turning: true };
+    this.lastSeatEye.copy(eye);
+    this.velocity.set(0, 0, 0);
+  }
+
+  /** Keeps the seated eye attached to a moving seat (e.g. inside the metro). */
+  updateSeatEye(eye: THREE.Vector3): void {
+    if (!this.seat) return;
+    this.seat.eye.copy(eye);
+    this.lastSeatEye.copy(eye);
+  }
+
+  /** Stands up where the player sat down from; the camera blends back smoothly. */
+  stand(): void {
+    this.seat = null;
+    this.velocity.set(0, 0, 0);
+  }
+
+  /** Eases the body to `to` over `duration` seconds (used for boarding / alighting). */
+  scriptedMove(to: THREE.Vector3, duration = 0.7): void {
+    this.scripted = { from: this.position.clone(), to: to.clone(), t: 0, duration };
+    this.velocity.set(0, 0, 0);
+  }
+
+  /** Moves the body (and any seat / scripted target) with a moving floor such as a train. */
+  carry(dx: number, dy: number, dz: number): void {
+    this.position.x += dx;
+    this.position.y += dy;
+    this.position.z += dz;
+    if (this.seat) this.seat.eye.set(this.seat.eye.x + dx, this.seat.eye.y + dy, this.seat.eye.z + dz);
+    this.lastSeatEye.set(this.lastSeatEye.x + dx, this.lastSeatEye.y + dy, this.lastSeatEye.z + dz);
+    if (this.scripted) {
+      this.scripted.from.set(this.scripted.from.x + dx, this.scripted.from.y + dy, this.scripted.from.z + dz);
+      this.scripted.to.set(this.scripted.to.x + dx, this.scripted.to.y + dy, this.scripted.to.z + dz);
+    }
   }
 
   /** Eye position (for interaction rays and audio listener). */
@@ -117,6 +178,42 @@ export class PlayerController {
     this.yaw -= this.mouse.x * k;
     this.pitch -= this.mouse.y * k * (this.invertY ? -1 : 1);
     this.pitch = clamp(this.pitch, -MAX_PITCH, MAX_PITCH);
+
+    // --- Special states ---------------------------------------------------------------
+    if (this.seat) {
+      const s = this.seat;
+      if (s.turning) {
+        this.yaw += angleDelta(this.yaw, s.yaw) * dampFactor(5, dt);
+        if (Math.abs(angleDelta(this.yaw, s.yaw)) < 0.03) s.turning = false;
+      } else {
+        this.yaw = s.yaw + clamp(angleDelta(s.yaw, this.yaw), -1.9, 1.9);
+      }
+      this.velocity.set(0, 0, 0);
+      this.seatBlend = damp(this.seatBlend, 1, 5, dt);
+      this.bobAmount = 0;
+      this.syncCamera(dt);
+      return;
+    }
+    this.seatBlend = damp(this.seatBlend, 0, 5, dt);
+    if (this.seatBlend < 0.002) this.seatBlend = 0;
+    if (this.scripted) {
+      const sc = this.scripted;
+      sc.t += dt;
+      const k = smoothstep(0, 1, sc.t / sc.duration);
+      this.position.lerpVectors(sc.from, sc.to, k);
+      this.velocity.set(0, 0, 0);
+      this.grounded = true;
+      if (sc.t >= sc.duration) this.scripted = null;
+      this.syncCamera(dt);
+      return;
+    }
+    if (this.locked) {
+      this.velocity.x = 0;
+      this.velocity.z = 0;
+      this.bobAmount = damp(this.bobAmount, 0, 6, dt);
+      this.syncCamera(dt);
+      return;
+    }
 
     // --- Wish direction -----------------------------------------------------------------
     const f = (input.isDown('KeyW') || input.isDown('ArrowUp') ? 1 : 0) - (input.isDown('KeyS') || input.isDown('ArrowDown') ? 1 : 0);
@@ -243,6 +340,7 @@ export class PlayerController {
       this.position.y + this.tuning.eyeHeight - this.stepSmooth + bobY,
       this.position.z - sinY * bobX,
     );
+    if (this.seatBlend > 0) this.camera.position.lerp(this.lastSeatEye, smoothstep(0, 1, this.seatBlend));
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     const fov = this.baseFov + this.fovKick * 3 * Math.min(1, this.headBob * 2);
     if (Math.abs(this.camera.fov - fov) > 0.01) {

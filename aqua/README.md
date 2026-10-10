@@ -51,13 +51,74 @@ npm test
 | Olhar | Mouse |
 | Correr | `Shift` (segurando junto com `W`) |
 | Pular | `Espaço` |
-| Interagir / pegar objeto | `E` |
+| Interagir / pegar objeto / sentar / embarcar | `E` |
+| Levantar (quando sentado) | `E` ou `Espaço` |
+| Máquina de bebidas: escolher · confirmar · sair | `A`/`D` (ou `W`/`S`, setas, `1`–`6`) · `E` · `Q` |
 | Soltar objeto | `G` |
 | Arremessar objeto carregado | Clique esquerdo |
 | Pausar e liberar o mouse | `Esc` |
 | Capturar o mouse | Clique na tela |
 
 O jogo pausa sozinho quando a janela perde o foco ou a aba fica oculta; ao voltar, clique em **Retomar**.
+
+## Novidades da v0.3 — Fase 2: Aqua Metro, Mercado e ambientes interativos
+
+- **Aqua Metro — Linha 2 (funcional, ida e volta)**: estação **AQUA Central** na borda leste do platô (entradas pela
+  esplanada ao sul e por uma passarela sobre o canal a oeste) e terminal **Parque Flutuante**, uma ilha-jardim a
+  ~380 m, ligadas por viaduto sobre o mar.
+  - Estação: cobertura branca com claraboias redondas e trepadeiras, colunas-árvore, paredes de vidro, faixa
+    cobalto com luzes sobre a plataforma, piso com ondas, piso tátil, portas de plataforma de vidro (com a cruz
+    verde-limão da referência), canal interno com ilhas plantadas, vitórias-régias e barquinhos, assentos-ovo,
+    bancos, mezanino com escada e lounge, placas suspensas bilíngues, painéis de partidas, relógio e mapa da rede.
+  - Trem de 3 carros com interior (bancos, barras, luzes, telas "Próxima estação"), portas que abrem do lado da
+    plataforma, faróis e cabines arredondadas.
+  - Ciclo de serviço com máquina de estados (`TrainService`): embarque com contagem no painel → aviso e sinal
+    sonoro → fechamento das portas (trem e plataforma sincronizados) → partida, aceleração, frenagem e parada
+    exata → abertura → embarque. O trem **nunca anda com portas abertas** e **nunca fecha sobre o jogador**: se ele
+    estiver no vão, as portas seguram (até 2 vezes) e depois o jogo o conduz suavemente para dentro do trem.
+  - **E — Entrar no trem / Sair do trem** em cada porta (apenas com o trem parado e portas abertas). Dentro do
+    trem dá para andar e **sentar**; o jogador é levado junto durante a viagem, inclusive sentado.
+  - Som: ruído de rolamento e motor de tração que acompanham a velocidade, portas, sinal de três notas e anúncios
+    curtos em português (síntese de voz do navegador, volume baixo, sem repetição; se o navegador não tiver voz,
+    toca só o sinal).
+  - Sinalização honesta: só existem **duas estações**; o mapa e os painéis marcam "Cidade das Águas" e as outras
+    paradas como **em breve / extensão planejada**. A "Cidade das Águas" no horizonte é cenário.
+- **Mercado Aqua** (gramado sudeste, entrada pela esplanada do Átrio): fachada de vidro com letreiro e marquise,
+  portas automáticas, corredor central de geladeiras de vidro sobre bases cobalto com tampo verde-limão, teto com
+  "nuvens" cobalto e luzes embutidas, vasos de vidro suspensos com trepadeiras, janela em arco ao fundo, piso azul
+  refletivo com ondas, gôndolas e prateleiras de parede com etiquetas de preço, ilhas de hortifruti, caixa com tela,
+  cestas e pufes junto à janela. Produtos são embalagens fictícias variadas (garrafas, garrafões, latas, caixinhas,
+  potes, caixas de cereal, copos de iogurte, frutas) com rótulos de marcas inventadas — milhares de itens em poucos
+  draw calls (instancing).
+  - Interações: abrir/fechar cada geladeira (fecha sozinha depois de alguns segundos), **examinar produtos** (ficha no
+    HUD), examinar prateleiras e frutas, passar no caixa, carregar cestas. Sem sistema de dinheiro: tudo é cortesia.
+- **Sistema único de sentar/levantar** (`Seats.ts`): "E — Sentar" em bancos, sofá e poltronas do Átrio, bancos da
+  Galeria, espreguiçadeiras e pavilhão do Terraço, assentos da estação, do parque, do trem e pufes do mercado. A
+  câmera vai suavemente até o assento, o olhar fica limitado a um arco confortável e, ao levantar, o jogador volta
+  exatamente para onde estava.
+- **Máquinas de bebidas anos 2000** (estação, parque e porta do mercado): menu no LCD da máquina e no HUD, teclado
+  que acende, motor da espiral, a bebida anda, cai, a portinhola balança, som de entrega e conclusão. A bebida fica
+  na bandeja — "E — Retirar" — e pode ser carregada, solta e arremessada.
+- **Banheiro da estação** (sob o mezanino): paredes cobalto brilhantes com rodapé de mosaico, espelhos em forma de
+  pílula, bancada de acrílico ciano iluminada com cubas de vidro, torneiras cromadas, saboneteiras, secador de mãos,
+  lixeiras, nicho com frascos, janela-escotilha de vidro jateado, luminárias-gota, três cabines com portas de vidro
+  jateado e vasos suspensos, porta automática. Interações: torneiras (água corrente + som, desligam sozinhas),
+  sabonete, secador, portas das cabines (não fecham sobre o jogador) e descarga.
+  - Espelhos: reflexo em tempo real (`Reflector`) **somente** com o jogador dentro do banheiro e qualidade Alta; ele
+    renderiza só a zona da estação. Fora disso, um metal polido com reflexo do ambiente.
+- **Desempenho**: estação+trem+parque e mercado ficam em grupos próprios e são ignorados quando a câmera está
+  dentro do Átrio fechado (de onde não são visíveis); a transmissão física do vidro do Átrio só é ativada perto dele
+  (ela obriga o three.js a renderizar a cena opaca duas vezes sempre que está no enquadramento, mesmo a 400 m).
+
+### Fidelidade às imagens de referência
+
+As quatro referências (banheiro, corredor de mercado, visão geral da estação, plataforma com trem) foram seguidas
+em **elementos, formas, paleta e materiais**: cobalto/branco/ciano/verde-limão, cromo e vidro, colunas-árvore,
+claraboias com trepadeiras, faixa cobalto do teto, portas de plataforma com a cruz verde, placas azuis bilíngues,
+espelhos-pílula, cubas de vidro, bases cobalto com tampo limão, "nuvens" cobalto, janela em arco. Por ser geometria
+procedural em tempo real (sem modelos, texturas fotográficas nem iluminação global), o resultado **não é idêntico
+pixel a pixel** às imagens: superfícies são mais simples, a iluminação é direta + ambiente, e não há o acabamento
+de uma renderização offline.
 
 ## Novidades da v0.2 — identidade visual
 
@@ -66,7 +127,6 @@ O jogo pausa sozinho quando a janela perde o foco ou a aba fica oculta; ao volta
 - **Água**: o espelho d'água do Átrio reflete o próprio salão (reflexo local "assado" no carregamento, com correção de paralaxe), bordas com menisco e espuma, ondulações contínuas onde os jatos caem (somem quando a fonte desliga).
 - **Iluminação por ambiente**: luz de céu, reflexo ambiente, sol e exposição mudam suavemente entre salões, aquário, jardins e terraço.
 - **Interface** na nova linguagem (cobalto, ciano, toque limão) e placas no novo padrão.
-- Próxima área planejada: **Mercado Aqua** — ver [`docs/ROTEIRO.md`](docs/ROTEIRO.md).
 
 ## O que existe no mundo
 
@@ -77,6 +137,9 @@ O complexo ocupa um platô de aproximadamente 100 × 115 m sobre o mar, com todo
 | **Átrio Azul** (início) | Salão circular branco com óculo de vidro para o céu, piscina rasa com fonte (jato central + 8 arcos), esfera de vidro flutuante, colunas com luzes de destaque, canteiros tropicais, parede-cortina de vidro, bancos | Painel **Fonte do Átrio** (liga/desliga jatos, arcos, respingos e som); painel **Luzes do Átrio** (luzes pontuais, faixas emissivas, cones de luz, cáusticas); 3 esferas carregáveis |
 | **Jardins Hidráulicos** (norte) | Canal de 50 m com duas pontes, reservatório elevado com comporta, tubulação de vidro com fluxo visível, duas piscinas quadradas com esculturas e jatos, piscina redonda com fonte de dois níveis, pérgula de arcos, postes, palmeiras, samambaias, flores e grama | Válvula da **Comporta do Canal** (a comporta sobe, uma cortina de água cai no canal, a correnteza aparece, o nível do canal sobe e o do reservatório desce — objetos flutuantes são levados pela corrente); painel **Fontes do Jardim** (3 fontes, bicas e o fluxo dentro da tubulação); 3 esferas |
 | **Galeria Aquática** (leste) | Corredor envidraçado entre dois tanques com peixes, algas, corais, rochas, bolhas e feixes de luz; salão redondo com aquário-coluna do piso ao teto e janela panorâmica; saída para a esplanada | Painel **Luzes da Galeria** (luzes turquesa, cáusticas no piso, iluminação dentro dos tanques); painel **Cortina de Bolhas** |
+| **Aqua Metro — AQUA Central** (leste) | Estação com plataforma, portas de plataforma, canal interno com ponte, mezanino com escada, banheiro, máquinas de bebidas, painéis de partidas, relógio, mapa da rede | Embarcar/desembarcar, sentar, máquinas de bebidas, banheiro completo (torneiras, sabonete, secador, cabines, descarga) |
+| **Parque Flutuante** (ilha, via metrô) | Terminal com cobertura e óculo, lago com ilhas plantadas, palmeiras, bancos e mirante para o complexo | Embarcar de volta, sentar, máquina de bebidas |
+| **Mercado Aqua** (sudeste) | Mercado com geladeiras de vidro, gôndolas, hortifruti, caixa, lounge na janela em arco | Geladeiras, examinar produtos, caixa, cestas carregáveis, pufes, máquina de bebidas na entrada |
 | **Terraço do Horizonte** (destino) | Deck elevado (4 m) acessado por duas rampas, piscina infinita cuja borda transborda para o horizonte, cascata na fachada, espreguiçadeiras, guarda-sóis, pavilhão de vidro, binóculo e vista para ilhas com torres e turbinas eólicas | Painel **Luzes da Piscina**; 2 boias carregáveis que flutuam |
 
 Também é possível **entrar a pé nas piscinas rasas e no canal** (o jogador anda mais devagar, com respingos, ondulações e som de água). Não há natação nem mergulho nesta versão.
@@ -116,14 +179,23 @@ src/
                            e o agrupador estático que funde malhas por material
     Materials.ts           biblioteca de materiais (cerâmica, vidro, cromo, azulejo, gramado…)
     Atrium.ts, HydraulicGardens.ts, AquariumGallery.ts, HorizonTerrace.ts, Surroundings.ts
+    AquaMetro.ts           estações, viaduto, ilha, sincronização trem/portas/painéis/sons/passageiro
+    MetroTrain.ts          trem (casca, interior, portas, colisores que se movem com ele)
+    MetroSignage.ts        placas, painel de partidas, relógio, mapa da rede, texturas de piso
+    Restroom.ts            banheiro da estação e suas interações
+    Market.ts, Products.ts Mercado Aqua; embalagens fictícias instanciadas com atlas de rótulos
+    ArchKit.ts, Furniture.ts, Palette.ts  componentes do sistema visual (colunas, escadas, bancos…)
   systems/
-    Interactables.ts       contrato `Interactable` + painel de controle com tela digital viva
+    Interactables.ts       contrato `Interactable`, painel de controle com tela viva, `UseSpot` genérico
+    Seats.ts               sistema único de sentar/levantar (assentos fixos ou em objetos móveis)
+    TrainService.ts        máquina de estados do serviço do metrô (lógica pura, testada)
+    VendingMachine.ts      máquina de bebidas (interação modal em 8 etapas)
     ObjectPhysics.ts       esferas carregáveis: gravidade, quique, flutuação, correnteza, empurrões
     AudioManager.ts        áudio procedural (Web Audio API), espacial, por categorias
     PerformanceManager.ts  medição de FPS, sobreposição de estatísticas, perfis gráficos
   ui/                      menu inicial, HUD, pausa, configurações, créditos (DOM + CSS)
   styles/main.css          interface Frutiger Aero (painéis translúcidos, botões glossy)
-tests/                     testes Vitest de colisão e movimentação
+tests/                     testes Vitest: colisão, movimentação, serviço do trem, assentos
 ```
 
 Detalhes técnicos relevantes:
@@ -178,13 +250,33 @@ música ambiente generativa (acordes maj9/add9 com sinos e eco), leito sonoro po
 
 Medições feitas **apenas** em um contêiner Linux sem GPU, com Chromium headless e renderização por software (SwiftShader). Nesse ambiente o jogo roda a ~1 FPS, o que serve para verificar que tudo funciona, mas **não representa** o desempenho em um PC com placa de vídeo. A meta de ~60 FPS em um PC de referência ainda precisa ser confirmada em hardware real.
 
-Carga medida com `renderer.info` no perfil Alto: no ponto inicial do átrio, cerca de **370 draw calls e 1,06 milhão de triângulos por quadro** (somando a passada de sombras); em pontos mais isolados, como o terraço, cerca de 110 draw calls e 0,35 milhão de triângulos. A cena inteira tem por volta de 600 mil triângulos, e os maiores contribuintes são samambaias, grama e palmeiras. O perfil Econômico desliga as sombras e reduz grama, flores e partículas. Para medir na sua máquina, ative **Configurações → Mostrar FPS e estatísticas**.
+Carga medida na v0.3 com `aqua.measure()` (um quadro completo, somando sombras, transmissão e espelho):
+
+| Ponto de vista | Alto: draw calls / triângulos | Econômico: draw calls / triângulos |
+| --- | --- | --- |
+| Início (Átrio) | 563 / 1,49 M | 288 / 0,59 M |
+| Jardins | 330 / 1,06 M | 274 / 0,62 M |
+| Plataforma AQUA Central | 257 / 1,05 M | 202 / 0,64 M |
+| Dentro do trem (vista da estação e do mar) | 700 / 2,05 M | 645 / 1,62 M |
+| Mercado (entrada, olhando o corredor) | 527 / 1,83 M | 472 / 1,42 M |
+| Parque Flutuante (olhando o complexo) | 925 / 2,18 M | 870 / 1,72 M |
+| Banheiro (espelho em tempo real) | 643 / 1,53 M | 502 / 0,78 M (sem espelho) |
+
+Antes da Fase 2 o início marcava 481 / 1,12 M no Alto; o aumento vem principalmente da vegetação nova (instâncias
+globais por espécie) e das novas áreas quando estão no enquadramento. Os piores casos são as vistas longas que
+enxergam o complexo inteiro (parque, trem). O perfil Econômico desliga sombras, transmissão e o espelho em tempo real
+e reduz grama, flores e partículas. Para medir na sua máquina, ative **Configurações → Mostrar FPS e estatísticas**.
 
 ## Limitações conhecidas
 
 - Sem natação/mergulho; piscinas e canal são rasos e servem para caminhar.
 - Física simplificada: apenas esferas carregáveis; colisões por caixas, cilindros e rampas (paredes curvas aproximadas por segmentos).
 - Reflexos da água: o Átrio usa um reflexo local estático; as outras águas refletem só o céu. Refração é simulada.
+- Metrô: uma linha com duas estações; o trem anda em linha reta (sem curvas). Os anúncios usam a voz do sistema
+  operacional, que varia entre navegadores. "Cidade das Águas" e as demais paradas do mapa são planejadas.
+- Mercado: produtos são decorativos (não dá para pegar cada item); só as cestas e as bebidas das máquinas são
+  carregáveis. As portas das geladeiras não têm colisão quando abertas.
+- Espelhos do banheiro: o reflexo em tempo real mostra só a estação (o resto do mundo é omitido nessa passada).
 - Sombras do sol cobrem ~68 × 68 m ao redor do jogador.
 - Sem suporte a gamepad nem a dispositivos de toque.
 - No Chrome, após sair do mouse capturado com `Esc`, o navegador pode recusar recapturar por cerca de 1 s; o jogo mostra "Clique na tela para capturar o mouse" e basta clicar novamente.
@@ -199,5 +291,13 @@ Carga medida com `renderer.info` no perfil Alto: no ponto inicial do átrio, cer
 5. Subir uma das rampas até o Terraço e caminhar até a borda da piscina infinita.
 6. Voltar ao átrio e seguir para leste até a Galeria; alternar luzes e cortina de bolhas.
 7. `Esc` → Configurações: mudar qualidade, FOV, volumes e balanço da câmera; Voltar ao menu inicial e iniciar de novo.
+8. Seguir as placas "Aqua Metro" (leste). Esperar o trem na plataforma (painel mostra a contagem), apontar para uma
+   porta e usar **E — Entrar no trem**, sentar num banco, viajar até o Parque Flutuante e sair com **E**.
+9. No parque: usar a máquina de bebidas (escolher com `A`/`D`, confirmar com `E`), retirar a bebida, sentar no
+   mirante; voltar de trem.
+10. Na estação: subir a escada ao mezanino; entrar no banheiro e testar torneira, sabonete, secador, cabines e descarga.
+11. Ir ao Mercado Aqua (sudeste do Átrio): abrir geladeiras, examinar produtos, passar no caixa, carregar uma cesta.
 
-Para testes automatizados no navegador, abra o jogo com `?debug` na URL: o objeto `window.aqua` expõe `play()`, `teleport()`, `look()`, `simulate()`, `interact()` e `state()`.
+Para testes automatizados no navegador, abra o jogo com `?debug` na URL: o objeto `window.aqua` expõe `play()`,
+`teleport()`, `look()`, `simulate()`, `interact()`, `press(tecla)`, `stepWorld(segundos)`, `train()`, `measure()` e
+`state()`.

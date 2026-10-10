@@ -13,6 +13,8 @@ export class HUD {
   private readonly hint: HTMLDivElement;
   private readonly capture: HTMLDivElement;
   private readonly toast: HTMLDivElement;
+  private readonly modal: HTMLDivElement;
+  private modalHtml = '';
   private promptText = '';
   private zoneTimer = 0;
   private toastTimer = 0;
@@ -26,9 +28,10 @@ export class HUD {
     this.zoneTitle = el('div', { className: 'zone-title' });
     this.hint = el('div', { className: 'hud-hint' });
     this.toast = el('div', { className: 'hud-toast' });
+    this.modal = el('div', { className: 'hud-carry hud-modal' });
     this.capture = el('div', { className: 'capture-msg' }, [el('div', { className: 'glass pill', text: 'Clique na tela para capturar o mouse e continuar' })]);
     this.capture.hidden = true;
-    this.root = el('div', { className: 'hud' }, [this.crosshair, this.prompt, this.carry, this.zoneTitle, this.hint, this.toast, this.capture]);
+    this.root = el('div', { className: 'hud' }, [this.crosshair, this.prompt, this.carry, this.zoneTitle, this.hint, this.toast, this.modal, this.capture]);
     this.root.hidden = true;
     parent.appendChild(this.root);
   }
@@ -51,6 +54,22 @@ export class HUD {
     this.carry.classList.toggle('visible', !!label);
   }
 
+  /** Bottom-centre help line for modal interactions (seated, vending menu…). */
+  setModalHint(html: string | null): void {
+    const h = html ?? '';
+    if (h === this.modalHtml) return;
+    this.modalHtml = h;
+    this.modal.innerHTML = h;
+    this.modal.classList.toggle('visible', !!h);
+  }
+
+  /** Info card (e.g. examined product). Uses the toast slot. */
+  showCard(html: string, seconds = 5): void {
+    this.toast.innerHTML = html;
+    this.toast.classList.add('visible', 'card');
+    this.toastTimer = seconds;
+  }
+
   showZone(title: string, subtitle: string): void {
     this.zoneTitle.innerHTML = `<h2>${escapeHtml(title)}</h2><p>${escapeHtml(subtitle)}</p>`;
     this.zoneTitle.classList.add('visible');
@@ -58,6 +77,7 @@ export class HUD {
   }
 
   showToast(text: string, seconds = 2.5): void {
+    this.toast.classList.remove('card');
     this.toast.textContent = text;
     this.toast.classList.add('visible');
     this.toastTimer = seconds;

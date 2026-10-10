@@ -39,6 +39,8 @@ export interface Collider {
   owner: string | null;
   enabled: boolean;
   stamp: number;
+  /** Grid cells the collider is registered in (fast removal for moving colliders). */
+  cells: number[];
 }
 
 export interface BoxOptions {
@@ -211,8 +213,8 @@ export class CollisionWorld {
     this.addToGrid(c);
   }
 
-  private insert(partial: Omit<Collider, 'id' | 'minX' | 'maxX' | 'minZ' | 'maxZ' | 'enabled' | 'stamp'>): Collider {
-    const c: Collider = { ...partial, id: this.nextId++, minX: 0, maxX: 0, minZ: 0, maxZ: 0, enabled: true, stamp: 0 };
+  private insert(partial: Omit<Collider, 'id' | 'minX' | 'maxX' | 'minZ' | 'maxZ' | 'enabled' | 'stamp' | 'cells'>): Collider {
+    const c: Collider = { ...partial, id: this.nextId++, minX: 0, maxX: 0, minZ: 0, maxZ: 0, enabled: true, stamp: 0, cells: [] };
     this.computeBounds(c);
     this.colliders.push(c);
     this.addToGrid(c);
@@ -249,15 +251,27 @@ export class CollisionWorld {
           this.grid.set(k, list);
         }
         list.push(c);
+        c.cells.push(k);
       }
     }
   }
 
   private removeFromGrid(c: Collider): void {
-    for (const list of this.grid.values()) {
+    for (const k of c.cells) {
+      const list = this.grid.get(k);
+      if (!list) continue;
       const i = list.indexOf(c);
       if (i >= 0) list.splice(i, 1);
     }
+    c.cells.length = 0;
+  }
+
+  /** Moves a collider to a new centre (keeps size / rotation) and updates the broad phase. */
+  moveTo(c: Collider, x: number, z: number): void {
+    if (c.x === x && c.z === z) return;
+    c.x = x;
+    c.z = z;
+    this.refresh(c);
   }
 
   /** Visits each enabled collider whose AABB overlaps the query rectangle exactly once. */

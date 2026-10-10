@@ -10,6 +10,8 @@ import type { AudioManager } from '../systems/AudioManager';
 import type { LightingSystem } from '../environment/LightingSystem';
 import type { Interactable } from '../systems/Interactables';
 import type { QualityAware, Updatable } from '../core/types';
+import type { Seat, SeatSpec } from '../systems/Seats';
+import type { InteractionModal } from '../player/InteractionSystem';
 
 /** Everything a zone builder needs to add geometry, collisions, water, plants and systems. */
 export interface WorldContext {
@@ -23,6 +25,12 @@ export interface WorldContext {
   physics: ObjectPhysics;
   audio: AudioManager;
   lighting: LightingSystem;
+  /** Current camera position (updated by the game every frame). */
+  viewer: THREE.Vector3;
+  /** Current quality profile. */
+  quality(): import('../core/types').QualityProfile;
+  /** Shows an information card on the HUD (product details, notices). */
+  showCard(html: string, seconds?: number): void;
   addUpdatable(u: Updatable): void;
   addQuality(q: QualityAware): void;
   addInteractable(i: Interactable): void;
@@ -30,4 +38,8 @@ export interface WorldContext {
   addHeroGlass(m: THREE.MeshPhysicalMaterial): void;
   /** Adds a carriable glossy sphere. */
   addBall(id: string, label: string, material: THREE.Material, x: number, y: number, z: number, radius?: number): void;
+  /** Registers a seat with the shared sit / stand system (one implementation for every seat). */
+  addSeat(spec: SeatSpec): Seat;
+  /** Registers a modal interaction (vending machine menu…) with the interaction system. */
+  addModal(modal: InteractionModal): void;
 }

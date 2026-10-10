@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { WorldContext } from './WorldContext';
+import { yawFacing } from '../systems/Seats';
 import { LAYOUT } from './WorldLayout';
 import { FountainEmitter, WaterStream } from '../environment/ParticleSystem';
 import { WATER_LOOKS } from '../environment/WaterSystem';
@@ -130,6 +131,7 @@ export class HorizonTerrace implements Updatable {
       b.box(m.whiteCeramic, x, Y, -69.6, 0.75, 0.3, 2.0, { collide: 'tile', radius: 0.12 });
       b.box(m.cushion, x, Y + 0.3, -69.4, 0.68, 0.08, 1.4, { radius: 0.04, cast: false });
       b.box(m.whiteCeramic, x, Y + 0.25, -68.45, 0.75, 0.75, 0.12, { rotX: 0.55, radius: 0.05 });
+      ctx.addSeat({ id: `terrace-lounger-${x}`, x, y: Y + 0.38, z: -69.7, yaw: yawFacing(0, -1) });
     }
     for (const x of [-8.75, 8.75]) {
       b.cylinder(m.chrome, x, Y, -69.0, 0.04, 0.04, 2.7, { collide: 'metal', segments: 10 });
@@ -151,6 +153,9 @@ export class HorizonTerrace implements Updatable {
     b.box(m.glass, (pv.x0 + pv.x1) / 2, Y + 3.18, (pv.z0 + pv.z1) / 2, pv.x1 - pv.x0 - 0.6, 0.05, pv.z1 - pv.z0 - 0.6, { cast: false, receive: false });
     b.arcWall(m.whiteCeramic, (pv.x0 + pv.x1) / 2, -81.2, 3.2, 3.8, 0.95, 2.2, Y, 0.45, { collide: 'stone', bevel: 0.07 });
     b.arcWall(m.cushion, (pv.x0 + pv.x1) / 2, -81.2, 3.25, 3.75, 0.97, 2.18, Y + 0.45, 0.08, { bevel: 0.03 });
+    for (const a of [1.2, 1.575, 1.95]) {
+      ctx.addSeat({ id: `terrace-pavilion-${a}`, x: (pv.x0 + pv.x1) / 2 + Math.cos(a) * 3.5, y: Y + 0.53, z: -81.2 + Math.sin(a) * 3.5, yaw: yawFacing(-Math.cos(a), -Math.sin(a)) });
+    }
     b.cylinder(m.glossyGreen, (pv.x0 + pv.x1) / 2, Y, -79.4, 0.5, 0.35, 0.45, { collide: 'stone', segments: 28 });
     // planters with palms
     for (const [x, z] of [

@@ -25,6 +25,8 @@ export class Terrain {
   readonly basins: Basin[] = [];
   /** Plateau outline in XZ (counter-clockwise or clockwise, any simple polygon). */
   outline: Array<[number, number]> = [];
+  /** Extra walkable land masses at `baseY` (islands reached by other means, e.g. the metro). */
+  readonly islands: Array<Array<[number, number]>> = [];
 
   constructor(
     public baseY = 0,
@@ -44,7 +46,7 @@ export class Terrain {
   }
 
   heightAt(x: number, z: number): number {
-    if (this.outline.length >= 3 && !this.insideOutline(x, z)) return this.cliffY;
+    if (this.outline.length >= 3 && !this.insideAnyLand(x, z)) return this.cliffY;
     for (const b of this.basins) {
       if (b.kind === 'circle') {
         const dx = x - b.x;
@@ -57,8 +59,17 @@ export class Terrain {
     return this.baseY;
   }
 
+  insideAnyLand(x: number, z: number): boolean {
+    if (this.insideOutline(x, z)) return true;
+    for (const island of this.islands) if (Terrain.insidePolygon(island, x, z)) return true;
+    return false;
+  }
+
   insideOutline(x: number, z: number): boolean {
-    const poly = this.outline;
+    return Terrain.insidePolygon(this.outline, x, z);
+  }
+
+  static insidePolygon(poly: Array<[number, number]>, x: number, z: number): boolean {
     let inside = false;
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
       const [xi, zi] = poly[i];

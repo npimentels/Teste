@@ -167,3 +167,97 @@ export function crescentRibs(b: WorldBuilder, cx: number, cz: number, rInner: nu
 export function floorInlay(b: WorldBuilder, material: THREE.Material, cx: number, cz: number, r0: number, r1: number, y = 0.034): void {
   b.ring(material, cx, y, cz, r0, r1, 0.004, { cast: false });
 }
+
+const treeCache = new Map<string, THREE.LatheGeometry>();
+
+/**
+ * "Tree" column from the station reference: a slender white trunk that opens smoothly into a
+ * wide round canopy at the ceiling, with a chrome rim and an optional cobalt collar.
+ */
+export function treeColumn(b: WorldBuilder, x: number, z: number, h: number, canopy = 2.6, trunk = 0.36, y0 = 0): void {
+  const key = `${h}:${canopy}:${trunk}`;
+  let g = treeCache.get(key);
+  if (!g) {
+    const pts: THREE.Vector2[] = [new THREE.Vector2(0.001, 0), new THREE.Vector2(trunk + 0.28, 0), new THREE.Vector2(trunk + 0.12, 0.25), new THREE.Vector2(trunk, 0.7)];
+    const flareStart = h * 0.45;
+    pts.push(new THREE.Vector2(trunk * 0.96, flareStart));
+    for (let i = 1; i <= 16; i++) {
+      const t = i / 16;
+      const y = flareStart + (h - 0.18 - flareStart) * Math.sin((t * Math.PI) / 2);
+      const r = trunk * 0.96 + (canopy - trunk) * Math.pow(t, 2.2);
+      pts.push(new THREE.Vector2(r, y));
+    }
+    pts.push(new THREE.Vector2(canopy, h), new THREE.Vector2(0.001, h));
+    g = new THREE.LatheGeometry(pts, 48);
+    treeCache.set(key, g);
+  }
+  b.place(g, b.mats.whiteCeramic, x, y0, z);
+  b.torus(b.mats.chrome, x, y0 + h - 0.06, z, canopy - 0.02, 0.035, { rotX: Math.PI / 2, cast: false });
+  b.torus(b.mats.cobaltCeramic, x, y0 + 1.25, z, trunk + 0.02, 0.05, { rotX: Math.PI / 2, cast: false });
+  b.collision.addCylinder({ x, z, r: trunk + 0.12, minY: y0, maxY: y0 + h, surface: 'stone' });
+}
+
+/**
+ * Straight stair between two levels: real steps for the eye, a smooth ramp for the controller,
+ * glass + chrome balustrades on the open sides. `dirX/dirZ` is the climbing direction.
+ */
+export function straightStair(
+  b: WorldBuilder,
+  o: { x0: number; z0: number; dirX: number; dirZ: number; width: number; rise: number; run: number; y0?: number; rails?: Array<-1 | 1> },
+): void {
+  const y0 = o.y0 ?? 0;
+  const steps = Math.max(2, Math.round(o.rise / 0.18));
+  const stepRise = o.rise / steps;
+  const stepRun = o.run / steps;
+  const sideX = -o.dirZ;
+  const sideZ = o.dirX;
+  const rotY = Math.atan2(-sideZ, sideX); // local X across the stair
+  for (let i = 0; i < steps; i++) {
+    const d = (i + 0.5) * stepRun;
+    const cx = o.x0 + o.dirX * d;
+    const cz = o.z0 + o.dirZ * d;
+    const top = y0 + (i + 1) * stepRise;
+    b.box(b.mats.whiteCeramic, cx, y0, cz, o.width, top - y0, stepRun + 0.01, { rotY, cast: false });
+    b.box(b.mats.cobaltCeramic, cx + o.dirX * (stepRun / 2 - 0.03), top - 0.012, cz + o.dirZ * (stepRun / 2 - 0.03), o.width - 0.06, 0.014, 0.05, { rotY, cast: false, receive: false });
+  }
+  // controller ramp (same footprint)
+  const midX = o.x0 + (o.dirX * o.run) / 2;
+  const midZ = o.z0 + (o.dirZ * o.run) / 2;
+  b.collision.addRamp({ x: midX, z: midZ, sx: o.width, sz: o.run, rotY: Math.atan2(o.dirX, o.dirZ), minY: y0, y0, y1: y0 + o.rise });
+  for (const side of o.rails ?? [-1, 1]) {
+    const off = (side * o.width) / 2;
+    const ax = o.x0 + sideX * off;
+    const az = o.z0 + sideZ * off;
+    const bx = ax + o.dirX * o.run;
+    const bz = az + o.dirZ * o.run;
+    slopedBalustrade(b, ax, y0, az, bx, y0 + o.rise, bz);
+  }
+}
+
+/** Glass balustrade with chrome handrail following a slope from A to B (with collision). */
+export function slopedBalustrade(b: WorldBuilder, ax: number, ay: number, az: number, bx: number, by: number, bz: number, h = 1.0): void {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([ax, ay + 0.06, az, bx, by + 0.06, bz, bx, by + h - 0.06, bz, ax, ay + h - 0.06, az], 3));
+  geo.setIndex([0, 1, 2, 0, 2, 3]);
+  geo.computeVertexNormals();
+  b.place(geo, b.mats.glass, 0, 0, 0, { cast: false, receive: false });
+  geo.dispose();
+  const len = Math.hypot(bx - ax, by - ay, bz - az);
+  const rail = new THREE.CylinderGeometry(0.035, 0.035, len, 10);
+  const dir = new THREE.Vector3(bx - ax, by - ay, bz - az).normalize();
+  rail.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir));
+  b.place(rail, b.mats.chrome, (ax + bx) / 2, (ay + by) / 2 + h, (az + bz) / 2, { cast: false });
+  rail.dispose();
+  const posts = Math.max(2, Math.ceil(len / 1.6));
+  for (let i = 0; i <= posts; i++) {
+    const t = i / posts;
+    b.cylinder(b.mats.chrome, ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t, 0.03, 0.03, h, { segments: 8, cast: false });
+  }
+  const segs = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 1.2));
+  for (let i = 0; i < segs; i++) {
+    const t0 = i / segs;
+    const t1 = (i + 1) / segs;
+    const top = Math.max(ay + (by - ay) * t0, ay + (by - ay) * t1) + h + 0.05;
+    b.collision.addSegment(ax + (bx - ax) * t0, az + (bz - az) * t0, ax + (bx - ax) * t1, az + (bz - az) * t1, 0.12, Math.min(ay, by) - 0.5, top, 'glass');
+  }
+}

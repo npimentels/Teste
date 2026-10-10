@@ -299,3 +299,46 @@ export function lilyPads(b: WorldBuilder, cx: number, cz: number, rMin: number, 
     if (rnd() < 0.45) b.sphere(rnd() < 0.5 ? b.mats.whiteCeramic : b.mats.limeGlossy, px + 0.04, y + 0.04, pz, 0.05, { cast: false });
   }
 }
+
+/** Teardrop pendant lamp (glass drop with a glowing core) on a fine cable. */
+export function teardropLamp(b: WorldBuilder, x: number, y: number, z: number, ceilingY: number, glow: THREE.Material, size = 0.32): void {
+  const key = `drop:${size.toFixed(2)}`;
+  const geo = cached(key, () => {
+    const pts: THREE.Vector2[] = [];
+    for (let i = 0; i <= 16; i++) {
+      const t = i / 16;
+      // round bottom, pointed top
+      const a = t * Math.PI;
+      const r = Math.sin(a) * size * (1 - 0.55 * t * t);
+      const yy = -Math.cos(a) * size * 1.25 + t * t * size * 0.9;
+      pts.push(new THREE.Vector2(Math.max(0.001, r), yy));
+    }
+    return new THREE.LatheGeometry(pts, 24);
+  });
+  b.place(geo, glow, x, y, z, { cast: false, receive: false });
+  b.cylinder(b.mats.chrome, x, y + size * 2.0, z, 0.006, 0.006, Math.max(0.05, ceilingY - y - size * 2.0), { segments: 6, cast: false });
+}
+
+/**
+ * Straight cushioned bench (white glossy base, fabric seat). Returns seat surface points
+ * (one every ~0.65 m) so callers can register them with the seat system.
+ */
+export function bench(b: WorldBuilder, x: number, z: number, facingX: number, facingZ: number, length: number, fabric: THREE.Material, back = true, y0 = 0): Array<{ x: number; y: number; z: number }> {
+  const along = { x: -facingZ, z: facingX };
+  const rotY = Math.atan2(-along.z, along.x);
+  b.box(b.mats.whiteCeramic, x, y0, z, length, 0.4, 0.58, { rotY, radius: 0.12 });
+  b.box(fabric, x, y0 + 0.4, z, length - 0.06, 0.07, 0.54, { rotY, radius: 0.035 });
+  if (back) {
+    const bx = x - facingX * 0.27;
+    const bz = z - facingZ * 0.27;
+    b.box(fabric, bx, y0 + 0.47, bz, length - 0.06, 0.48, 0.1, { rotY, radius: 0.045 });
+  }
+  b.collision.addBox({ x, z, sx: length, sz: 0.6, minY: y0, maxY: y0 + (back ? 0.95 : 0.6), rotY, surface: 'tile' });
+  const n = Math.max(1, Math.floor(length / 0.65));
+  const out: Array<{ x: number; y: number; z: number }> = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n - 0.5;
+    out.push({ x: x + along.x * t * length + facingX * 0.05, y: y0 + 0.47, z: z + along.z * t * length + facingZ * 0.05 });
+  }
+  return out;
+}
