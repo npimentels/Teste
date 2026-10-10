@@ -332,6 +332,136 @@ function grassTuftGeometry(seed: number): THREE.BufferGeometry {
   return b.build();
 }
 
+/** Ornamental banana: soft pseudostem and large arching paddle leaves with torn slits. */
+function bananaGeometry(seed: number): THREE.BufferGeometry {
+  const rng = createRng(seed);
+  const b = new GeoBuilder();
+  const stemH = randRange(rng, 1.1, 1.6);
+  const radial = 7;
+  let prev: number[] = [];
+  const stemCol = new THREE.Color(0x6f9a3c);
+  for (let i = 0; i <= 6; i++) {
+    const t = i / 6;
+    const r = THREE.MathUtils.lerp(0.13, 0.08, t);
+    const c = stemCol.clone().lerp(new THREE.Color(0x9cc65a), t * 0.6);
+    const ring: number[] = [];
+    for (let k = 0; k < radial; k++) {
+      const a = (k / radial) * Math.PI * 2;
+      ring.push(b.vertex(new THREE.Vector3(Math.cos(a) * r, t * stemH, Math.sin(a) * r), c));
+    }
+    if (prev.length) {
+      for (let k = 0; k < radial; k++) {
+        const k2 = (k + 1) % radial;
+        b.tri(prev[k], ring[k], prev[k2]);
+        b.tri(prev[k2], ring[k], ring[k2]);
+      }
+    }
+    prev = ring;
+  }
+  const leaves = 6 + Math.floor(rng() * 3);
+  for (let l = 0; l < leaves; l++) {
+    const az = (l / leaves) * Math.PI * 2 + rng() * 0.5;
+    const dir = new THREE.Vector3(Math.cos(az), 0, Math.sin(az));
+    const side = new THREE.Vector3(-dir.z, 0, dir.x);
+    const len = randRange(rng, 1.3, 1.9);
+    const wid = randRange(rng, 0.32, 0.45);
+    const lift = randRange(rng, 0.7, 1.2);
+    const droop = randRange(rng, 0.9, 1.4);
+    const base = new THREE.Vector3(0, stemH - 0.05 + rng() * 0.25, 0);
+    const seg = 10;
+    let prevRow: number[] = [];
+    for (let i = 0; i <= seg; i++) {
+      const t = i / seg;
+      const along = t * len;
+      const y = base.y + Math.sin(t * Math.PI * 0.5) * lift * 0.6 - t * t * droop * 0.9 + 0.35;
+      const mid = base.clone().addScaledVector(dir, 0.25 + along).setY(y);
+      const w = wid * Math.sin(Math.min(1, t * 1.15) * Math.PI) * (t < 0.08 ? 0.2 : 1);
+      const vcol = new THREE.Color(0x2f8a3e).lerp(new THREE.Color(0x8ed45e), 0.25 + t * 0.4 + rng() * 0.1);
+      const edge = vcol.clone().lerp(new THREE.Color(0xc6ec7a), 0.25);
+      const tear = i > 2 && i < seg - 1 && rng() < 0.3 ? 0.35 : 1; // torn slits
+      const left = b.vertex(mid.clone().addScaledVector(side, -w * tear).add(new THREE.Vector3(0, -w * 0.25, 0)), edge);
+      const m = b.vertex(mid, vcol.clone().multiplyScalar(0.85));
+      const right = b.vertex(mid.clone().addScaledVector(side, w).add(new THREE.Vector3(0, -w * 0.25, 0)), edge);
+      if (prevRow.length) {
+        b.tri(prevRow[0], left, prevRow[1]);
+        b.tri(prevRow[1], left, m);
+        b.tri(prevRow[1], m, prevRow[2]);
+        b.tri(prevRow[2], m, right);
+      }
+      prevRow = [left, m, right];
+    }
+  }
+  return b.build();
+}
+
+/** Snake plant: upright sword leaves, dark green with lime margins and pale banding. */
+function sansevieriaGeometry(seed: number): THREE.BufferGeometry {
+  const rng = createRng(seed);
+  const b = new GeoBuilder();
+  const blades = 10 + Math.floor(rng() * 5);
+  for (let i = 0; i < blades; i++) {
+    const a = rng() * Math.PI * 2;
+    const r0 = rng() * 0.12;
+    const h = randRange(rng, 0.55, 1.15);
+    const lean = randRange(rng, 0.03, 0.18);
+    const w = randRange(rng, 0.05, 0.08);
+    const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    const side = new THREE.Vector3(-dir.z, 0, dir.x);
+    const twist = rng() * 0.6;
+    let prev: number[] = [];
+    for (let s = 0; s <= 6; s++) {
+      const t = s / 6;
+      const p = new THREE.Vector3(Math.cos(a) * r0, t * h, Math.sin(a) * r0).addScaledVector(dir, lean * t * t);
+      const ww = w * (t > 0.8 ? (1 - t) * 5 : 1);
+      const sd = side.clone().applyAxisAngle(UP, twist * t);
+      const band = Math.sin(t * 28 + i) > 0.6 ? 0.25 : 0;
+      const core = new THREE.Color(0x1f5a32).lerp(new THREE.Color(0x8fb98a), band);
+      const edge = new THREE.Color(0xb9e04a);
+      const l = b.vertex(p.clone().addScaledVector(sd, -ww), edge);
+      const c = b.vertex(p.clone().addScaledVector(dir, 0.012), core);
+      const r = b.vertex(p.clone().addScaledVector(sd, ww), edge);
+      if (prev.length) {
+        b.tri(prev[0], l, prev[1]);
+        b.tri(prev[1], l, c);
+        b.tri(prev[1], c, prev[2]);
+        b.tri(prev[2], c, r);
+      }
+      prev = [l, c, r];
+    }
+  }
+  return b.build();
+}
+
+/** Trailing vine (pothos-like): strands hanging down from the origin with heart leaves. */
+function vineGeometry(seed: number): THREE.BufferGeometry {
+  const rng = createRng(seed);
+  const b = new GeoBuilder();
+  const strands = 6 + Math.floor(rng() * 4);
+  const stemCol = new THREE.Color(0x4f8f3a);
+  for (let s = 0; s < strands; s++) {
+    const a = rng() * Math.PI * 2;
+    const len = randRange(rng, 0.7, 1.8);
+    const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    const count = Math.floor(len / 0.11);
+    for (let i = 0; i < count; i++) {
+      const t = i / count;
+      const p = out.clone().multiplyScalar(0.05 + t * 0.12 + Math.sin(t * 7 + s) * 0.03).setY(-t * len);
+      const leafSize = randRange(rng, 0.05, 0.085);
+      const la = a + (i % 2 ? 1.2 : -1.2) + rng() * 0.4;
+      const ld = new THREE.Vector3(Math.cos(la), -0.35, Math.sin(la)).normalize();
+      const ls = new THREE.Vector3(-ld.z, 0, ld.x).normalize();
+      const c = new THREE.Color(0x3f9a46).lerp(new THREE.Color(0xa8dc6a), rng() * 0.6);
+      const p0 = b.vertex(p, stemCol);
+      const p1 = b.vertex(p.clone().addScaledVector(ld, leafSize).addScaledVector(ls, leafSize * 0.7), c);
+      const p2 = b.vertex(p.clone().addScaledVector(ld, leafSize * 2.1), c);
+      const p3 = b.vertex(p.clone().addScaledVector(ld, leafSize).addScaledVector(ls, -leafSize * 0.7), c);
+      b.tri(p0, p1, p2);
+      b.tri(p0, p2, p3);
+    }
+  }
+  return b.build();
+}
+
 function flowerGeometry(): { stem: THREE.BufferGeometry; head: THREE.BufferGeometry } {
   const stem = new THREE.CylinderGeometry(0.008, 0.01, 0.32, 4).translate(0, 0.16, 0);
   const head = new THREE.IcosahedronGeometry(0.05, 0).scale(1, 0.55, 1).translate(0, 0.33, 0);
@@ -388,6 +518,28 @@ export class Vegetation implements QualityAware {
     addPatch(headMat, windPatch(1.2, 1.6));
     this.materials.push(stemMat, headMat);
     this.register('flower', [stem], stemMat, false, true, { geometry: head, material: headMat, colored: true });
+    this.register('banana', [bananaGeometry(21), bananaGeometry(22), bananaGeometry(23)], foliage(0.035, 0.8), true, false);
+    this.register('sansevieria', [sansevieriaGeometry(24), sansevieriaGeometry(25)], foliage(0.02, 1.0), false, false);
+    const vineMat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.55 });
+    addPatch(vineMat, windPatch(0.05, 0.9, 'wind', true));
+    this.materials.push(vineMat);
+    this.register('vine', [vineGeometry(26), vineGeometry(27), vineGeometry(28)], vineMat, false, false);
+  }
+
+  /** Ornamental banana (tall paddle leaves). */
+  banana(x: number, y: number, z: number, scale = 1): void {
+    this.add('banana', x, y, z, scale * randRange(this.rng, 0.85, 1.15));
+    this.collision?.addCylinder({ x, z, r: 0.18 * scale, minY: y, maxY: y + 1.4 * scale, surface: 'wood' });
+  }
+
+  /** Snake plant (upright sword leaves with lime edges). */
+  sansevieria(x: number, y: number, z: number, scale = 1): void {
+    this.add('sansevieria', x, y, z, scale * randRange(this.rng, 0.85, 1.2));
+  }
+
+  /** Trailing vine hanging down from (x, y, z) — planter edges, ceilings, balconies. */
+  vine(x: number, y: number, z: number, scale = 1): void {
+    this.add('vine', x, y, z, scale * randRange(this.rng, 0.8, 1.2));
   }
 
   private register(name: string, variants: THREE.BufferGeometry[], material: THREE.Material, cast: boolean, scalable: boolean, extra?: Species['extra']): void {
@@ -472,6 +624,7 @@ export class Vegetation implements QualityAware {
       const j = Math.floor(this.rng() * (i + 1));
       [list[i], list[j]] = [list[j], list[i]];
     }
+    const tint = new THREE.Color();
     const make = (geo: THREE.BufferGeometry, mat: THREE.Material, colored: boolean) => {
       const mesh = new THREE.InstancedMesh(geo, mat, list.length);
       mesh.name = `veg:${sp.name}`;
@@ -482,6 +635,12 @@ export class Vegetation implements QualityAware {
         m.compose(p, q, s);
         mesh.setMatrixAt(i, m);
         if (colored && pl.color) mesh.setColorAt(i, pl.color);
+        else if (!colored) {
+          // mild per-plant variation: some a bit yellower / bluer / darker, never off-palette
+          const h1 = this.hash(pl.x, pl.z);
+          const h2 = this.hash(pl.z, pl.x);
+          mesh.setColorAt(i, tint.setRGB(0.86 + 0.18 * h1, 0.9 + 0.12 * h2, 0.8 + 0.16 * (1 - h1)));
+        }
       });
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -493,6 +652,12 @@ export class Vegetation implements QualityAware {
     };
     make(geometry, sp.material, false);
     if (sp.extra) make(sp.extra.geometry, sp.extra.material, sp.extra.colored);
+  }
+
+  /** Stable pseudo-random value in [0, 1) from a position (per-instance colour variation). */
+  private hash(a: number, b: number): number {
+    const h = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
+    return h - Math.floor(h);
   }
 
   applyQuality(profile: QualityProfile): void {

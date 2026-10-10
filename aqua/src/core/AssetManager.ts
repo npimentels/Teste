@@ -192,36 +192,203 @@ export class AssetManager {
     });
   }
 
-  /** Directional sign with arrow, Frutiger-style typography. */
-  sign(text: string, arrow: '←' | '→' | '↑' | '' = ''): THREE.Texture {
-    const key = `sign:${text}:${arrow}`;
+  /**
+   * AQUA wayfinding sign: cobalt glossy pill, white humanist type, a cyan bubble with the
+   * arrow and an optional lime dot. `zoneColor` tints the bubble per destination.
+   */
+  sign(text: string, arrow: '←' | '→' | '↑' | '' = '', zoneColor = '#28c5df'): THREE.Texture {
+    const key = `sign:${text}:${arrow}:${zoneColor}`;
     return this.cached(key, () => {
-      const [c, ctx] = this.canvas(512, 128);
-      const g = ctx.createLinearGradient(0, 0, 0, 128);
-      g.addColorStop(0, '#ffffff');
-      g.addColorStop(1, '#dff3fa');
+      const [c, ctx] = this.canvas(1024, 256);
+      ctx.clearRect(0, 0, 1024, 256);
+      const g = ctx.createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0, '#3f78e0');
+      g.addColorStop(0.48, '#1747b5');
+      g.addColorStop(0.52, '#0f3a9c');
+      g.addColorStop(1, '#1747b5');
       ctx.fillStyle = g;
-      roundRect(ctx, 4, 4, 504, 120, 28);
+      roundRect(ctx, 6, 6, 1012, 244, 122);
       ctx.fill();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = '#28c5df';
+      // glossy reflection band
+      const gloss = ctx.createLinearGradient(0, 6, 0, 128);
+      gloss.addColorStop(0, 'rgba(255,255,255,0.55)');
+      gloss.addColorStop(1, 'rgba(255,255,255,0.04)');
+      ctx.fillStyle = gloss;
+      roundRect(ctx, 22, 12, 980, 110, 60);
+      ctx.fill();
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      roundRect(ctx, 6, 6, 1012, 244, 122);
       ctx.stroke();
-      ctx.fillStyle = '#087dae';
-      ctx.font = '600 46px "Segoe UI", "Frutiger", "Myriad Pro", "Helvetica Neue", Arial, sans-serif';
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'left';
-      ctx.fillText(text, 40, 66);
+      // destination bubble
+      const bx = arrow ? 128 : -200;
       if (arrow) {
-        ctx.fillStyle = '#28c5df';
+        const rg = ctx.createRadialGradient(bx - 22, 104, 10, bx, 128, 92);
+        rg.addColorStop(0, '#ffffff');
+        rg.addColorStop(0.35, zoneColor);
+        rg.addColorStop(1, '#0b6d97');
+        ctx.fillStyle = rg;
         ctx.beginPath();
-        ctx.arc(448, 64, 40, 0, Math.PI * 2);
+        ctx.arc(bx, 128, 88, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#ffffff';
-        ctx.font = '700 52px "Segoe UI", Arial, sans-serif';
+        ctx.font = '700 112px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(arrow, 448, 66);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(arrow, bx, 136);
       }
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '600 92px "Segoe UI", "Frutiger", "Myriad Pro", "Helvetica Neue", Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const tx = arrow ? 250 : 80;
+      const maxW = 1024 - tx - 90;
+      const w = ctx.measureText(text).width;
+      if (w > maxW) ctx.font = `600 ${Math.floor((92 * maxW) / w)}px "Segoe UI", Arial, sans-serif`;
+      ctx.fillText(text, tx, 132);
+      // lime dot
+      ctx.fillStyle = '#9be22d';
+      ctx.beginPath();
+      ctx.arc(960, 128, 18, 0, Math.PI * 2);
+      ctx.fill();
       return this.finish(key, c, false);
+    });
+  }
+
+  /** White terrazzo with cobalt, cyan, ocean and a few lime chips (large, calm pattern). */
+  terrazzo(): THREE.Texture {
+    return this.cached('terrazzo', () => {
+      const size = 1024;
+      const [c, ctx] = this.canvas(size, size);
+      const rng = createRng(31);
+      ctx.fillStyle = '#f3f7f9';
+      ctx.fillRect(0, 0, size, size);
+      // soft cloudy variation
+      for (let i = 0; i < 60; i++) {
+        const x = rng() * size;
+        const y = rng() * size;
+        const r = 60 + rng() * 140;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(${rng() < 0.5 ? '225,236,242' : '255,255,255'},0.5)`);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      const chips: Array<[string, number]> = [
+        ['#5d86d6', 0.22],
+        ['#4aa6cc', 0.2],
+        ['#8fdcea', 0.24],
+        ['#c9d6dd', 0.3],
+        ['#b8e27a', 0.04],
+      ];
+      for (let i = 0; i < 1500; i++) {
+        let r = rng();
+        let col = chips[0][0];
+        for (const [cc, w] of chips) {
+          if (r < w) {
+            col = cc;
+            break;
+          }
+          r -= w;
+        }
+        const x = rng() * size;
+        const y = rng() * size;
+        const s = 1.2 + rng() * rng() * 5;
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.3 + rng() * 0.35;
+        ctx.beginPath();
+        const n = 5 + Math.floor(rng() * 3);
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * Math.PI * 2 + rng() * 0.5;
+          const rr = s * (0.6 + rng() * 0.5);
+          if (k === 0) ctx.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+          else ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      // large slab joints
+      ctx.strokeStyle = 'rgba(160,185,198,0.35)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, size, size);
+      return this.finish('terrazzo', c);
+    });
+  }
+
+  /** Glass mosaic in cobalt / ocean / cyan / white — pools, wainscots, accent bands. */
+  cobaltMosaic(): THREE.Texture {
+    return this.cached('cobaltMosaic', () => {
+      const size = 256;
+      const [c, ctx] = this.canvas(size, size);
+      const rng = createRng(17);
+      const n = 16;
+      const s = size / n;
+      ctx.fillStyle = '#dfeef4';
+      ctx.fillRect(0, 0, size, size);
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          const r = rng();
+          const col = r < 0.42 ? [23, 71, 181] : r < 0.7 ? [8, 125, 174] : r < 0.88 ? [40, 197, 223] : [235, 248, 252];
+          const j = (rng() - 0.5) * 24;
+          ctx.fillStyle = `rgb(${Math.max(0, col[0] + j) | 0},${Math.max(0, col[1] + j) | 0},${Math.min(255, col[2] + j) | 0})`;
+          ctx.fillRect(x * s + 1, y * s + 1, s - 2, s - 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.22)';
+          ctx.fillRect(x * s + 2, y * s + 2, s - 5, 3);
+        }
+      }
+      return this.finish('cobaltMosaic', c);
+    });
+  }
+
+  /** White wall panels with soft vertical flutes and a recessed joint every panel. */
+  flutedPanels(): THREE.Texture {
+    return this.cached('flutedPanels', () => {
+      const w = 512;
+      const h = 512;
+      const [c, ctx] = this.canvas(w, h);
+      ctx.fillStyle = '#f4f8fa';
+      ctx.fillRect(0, 0, w, h);
+      const flutes = 16;
+      const fw = w / flutes;
+      for (let i = 0; i < flutes; i++) {
+        const g = ctx.createLinearGradient(i * fw, 0, (i + 1) * fw, 0);
+        g.addColorStop(0, 'rgba(200,218,228,0.55)');
+        g.addColorStop(0.35, 'rgba(255,255,255,0.9)');
+        g.addColorStop(0.7, 'rgba(240,246,249,0.6)');
+        g.addColorStop(1, 'rgba(190,210,222,0.6)');
+        ctx.fillStyle = g;
+        ctx.fillRect(i * fw, 0, fw, h);
+      }
+      ctx.fillStyle = 'rgba(150,178,195,0.6)';
+      ctx.fillRect(0, h - 4, w, 4);
+      return this.finish('flutedPanels', c);
+    });
+  }
+
+  /** Circular rug pattern: concentric waves in cyan / cobalt on pearl. */
+  rug(): THREE.Texture {
+    return this.cached('rug', () => {
+      const size = 512;
+      const [c, ctx] = this.canvas(size, size);
+      ctx.fillStyle = '#e8f4f8';
+      ctx.fillRect(0, 0, size, size);
+      const cx = size / 2;
+      const rings = ['#1747b5', '#ffffff', '#28c5df', '#e8f4f8', '#087dae', '#ffffff', '#9fe6f2'];
+      rings.forEach((col, i) => {
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 14 - i;
+        ctx.beginPath();
+        for (let a = 0; a <= Math.PI * 2 + 0.01; a += 0.02) {
+          const r = 230 - i * 30 + Math.sin(a * 6 + i) * 6;
+          const x = cx + Math.cos(a) * r;
+          const y = cx + Math.sin(a) * r;
+          if (a === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+      return this.finish('rug', c, false);
     });
   }
 

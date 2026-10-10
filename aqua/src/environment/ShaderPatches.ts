@@ -135,9 +135,9 @@ export function causticsPatch(level: THREE.IUniform<number>, strength: THREE.IUn
 }
 
 /** Wind sway for instanced foliage: displacement grows with height above the instance origin. */
-export function windPatch(strength = 0.06, frequency = 1.2, name = 'wind'): ShaderPatch {
+export function windPatch(strength = 0.06, frequency = 1.2, name = 'wind', hanging = false): ShaderPatch {
   return {
-    name,
+    name: hanging ? `${name}Hang` : name,
     uniforms: { uWindStrength: { value: strength }, uWindFreq: { value: frequency } },
     vertexPars: 'uniform float uWindStrength; uniform float uWindFreq;',
     vertexTransform: /* glsl */ `
@@ -146,7 +146,7 @@ export function windPatch(strength = 0.06, frequency = 1.2, name = 'wind'): Shad
         #ifdef USE_INSTANCING
           basePos = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
         #endif
-        float h = max(transformed.y, 0.0);
+        float h = ${hanging ? 'max(-transformed.y, 0.0)' : 'max(transformed.y, 0.0)'};
         float phase = basePos.x * 0.37 + basePos.z * 0.23;
         float sway = sin(uTime * uWindFreq + phase) + 0.45 * sin(uTime * uWindFreq * 2.3 + phase * 1.7);
         float flutter = sin(uTime * 6.0 + transformed.x * 3.0 + transformed.z * 2.0 + phase) * 0.15;

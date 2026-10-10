@@ -16,8 +16,18 @@ import { SettingsPanel } from '../ui/Settings';
 import { Credits } from '../ui/Credits';
 import type { UiSounds } from '../ui/dom';
 import { LAYOUT, ZONE_INFO, surfaceAt, zoneAt } from '../world/WorldLayout';
+import { AMBIENCE } from '../world/Palette';
 
 export type GameState = 'loading' | 'menu' | 'playing' | 'paused';
+
+/** Which lighting rules apply in each zone (see Palette.AMBIENCE). */
+const ZONE_AMBIENCE: Record<ZoneId, keyof typeof AMBIENCE> = {
+  atrium: 'hall',
+  gallery: 'aquarium',
+  gardens: 'garden',
+  terrace: 'terrace',
+  exterior: 'open',
+};
 
 const FOOTSTEP_SFX: Record<FootSurface, SfxName> = {
   tile: 'stepTile',
@@ -392,6 +402,10 @@ export class Game {
     }
 
     this.world.update(dt, this.time);
+    const amb = this.state === 'menu' || this.zone === null ? 'hall' : ZONE_AMBIENCE[this.zone];
+    this.world.lighting.setAmbience(AMBIENCE[amb]);
+    this.world.lighting.updateAmbience(dt);
+    this.renderer.toneMappingExposure = this.world.lighting.ambience.exposure;
     this.focus.copy(this.state === 'menu' ? this.world.scene.position : this.player.position);
     this.world.lighting.follow(this.focus);
     this.world.sky.follow(this.camera);

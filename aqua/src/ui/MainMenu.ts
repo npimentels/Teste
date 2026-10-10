@@ -39,7 +39,7 @@ export class MainMenu {
           html: '<kbd>W A S D</kbd> andar · <kbd>Mouse</kbd> olhar · <kbd>Shift</kbd> correr · <kbd>Espaço</kbd> pular · <kbd>E</kbd> interagir · <kbd>G</kbd> soltar · <kbd>Esc</kbd> pausa',
         }),
       ]),
-      el('p', { className: 'version', text: 'v0.1 · protótipo jogável' }),
+      el('p', { className: 'version', text: 'v0.2 · identidade visual' }),
     ]);
     this.root.hidden = true;
     parent.appendChild(this.root);

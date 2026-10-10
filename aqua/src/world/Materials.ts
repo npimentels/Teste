@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { AssetManager } from '../core/AssetManager';
 import { addPatch, causticsPatch } from '../environment/ShaderPatches';
+import { PALETTE } from './Palette';
 
 /** Shared material library — one instance per surface type keeps draw calls & programs low. */
 export class Materials {
@@ -25,6 +26,33 @@ export class Materials {
   readonly emissiveCyan: THREE.MeshStandardMaterial;
   readonly emissiveWarm: THREE.MeshStandardMaterial;
   readonly cushion: THREE.MeshStandardMaterial;
+  // ---- AQUA visual system (see Palette.ts for usage rules) -------------------------------
+  /** Glossy cobalt ceramic — the anchor colour: bands, frames, furniture shells. */
+  readonly cobaltCeramic: THREE.MeshPhysicalMaterial;
+  /** Darker cobalt for undersides, recesses and edge reveals. */
+  readonly cobaltDeep: THREE.MeshPhysicalMaterial;
+  /** Glass mosaic band (cobalt / ocean / cyan). */
+  readonly cobaltMosaic: THREE.MeshStandardMaterial;
+  /** Translucent cyan acrylic (fins, lamp shades, arches). */
+  readonly cyanAcrylic: THREE.MeshPhysicalMaterial;
+  /** Lime gloss — highlight only. */
+  readonly limeGlossy: THREE.MeshPhysicalMaterial;
+  /** Polished white terrazzo with coloured chips. */
+  readonly terrazzo: THREE.MeshStandardMaterial;
+  /** Wet stone around water: darker, mirror-like. */
+  readonly wetStone: THREE.MeshStandardMaterial;
+  readonly brushedMetal: THREE.MeshStandardMaterial;
+  readonly fabricCobalt: THREE.MeshPhysicalMaterial;
+  readonly fabricCyan: THREE.MeshPhysicalMaterial;
+  readonly fabricLime: THREE.MeshPhysicalMaterial;
+  /** Pale maple wood — warm counterpoint, used sparingly (tops, slats). */
+  readonly maple: THREE.MeshStandardMaterial;
+  readonly frostedGlass: THREE.MeshPhysicalMaterial;
+  /** Glossy black bezel for screens and devices. */
+  readonly glossBlack: THREE.MeshPhysicalMaterial;
+  /** White fluted wall panels. */
+  readonly flutedWall: THREE.MeshStandardMaterial;
+  readonly rug: THREE.MeshStandardMaterial;
   private readonly poolTiles = new Map<string, THREE.MeshStandardMaterial>();
   private readonly mosaic: THREE.Texture;
 
@@ -93,18 +121,65 @@ export class Materials {
     this.emissiveCyan = new THREE.MeshStandardMaterial({ name: 'emissiveCyan', color: 0xcffaff, emissive: 0x28c5df, emissiveIntensity: 2.2, roughness: 0.3 });
     this.emissiveWarm = new THREE.MeshStandardMaterial({ name: 'emissiveWarm', color: 0xfff8e8, emissive: 0xfff1d0, emissiveIntensity: 1.6, roughness: 0.3 });
     this.cushion = new THREE.MeshStandardMaterial({ name: 'cushion', color: 0xbfeaf2, roughness: 0.8 });
-    for (const m of [this.floorTile, this.wetTile, this.paving, this.lawn, this.wallPanels]) m.userData.worldUV = true;
+    const glossyPhys = (name: string, color: number, roughness = 0.2) =>
+      new THREE.MeshPhysicalMaterial({ name, color, roughness, clearcoat: 1, clearcoatRoughness: 0.06 });
+    this.cobaltCeramic = glossyPhys('cobaltCeramic', PALETTE.cobalt, 0.22);
+    this.cobaltDeep = glossyPhys('cobaltDeep', PALETTE.cobaltDeep, 0.3);
+    const cm = assets.cobaltMosaic();
+    cm.repeat.set(0.9, 0.9);
+    this.cobaltMosaic = new THREE.MeshStandardMaterial({ name: 'cobaltMosaic', map: cm, roughness: 0.12, envMapIntensity: 1.1 });
+    this.cyanAcrylic = new THREE.MeshPhysicalMaterial({
+      name: 'cyanAcrylic',
+      color: PALETTE.cyanGlow,
+      emissive: 0x0b5f72,
+      emissiveIntensity: 0.6,
+      roughness: 0.08,
+      clearcoat: 1,
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.limeGlossy = glossyPhys('limeGlossy', PALETTE.lime, 0.2);
+    const tz = assets.terrazzo();
+    tz.repeat.set(0.16, 0.16);
+    this.terrazzo = new THREE.MeshStandardMaterial({ name: 'terrazzo', map: tz, roughness: 0.2, envMapIntensity: 0.75 });
+    this.wetStone = new THREE.MeshStandardMaterial({ name: 'wetStone', map: tz, color: 0xbcd3de, roughness: 0.05, envMapIntensity: 1.35 });
+    this.brushedMetal = new THREE.MeshStandardMaterial({ name: 'brushedMetal', color: 0xd3dde3, metalness: 1, roughness: 0.32 });
+    const fabric = (name: string, color: number, sheen: number) =>
+      new THREE.MeshPhysicalMaterial({ name, color, roughness: 0.82, sheen: 1, sheenRoughness: 0.5, sheenColor: new THREE.Color(sheen) });
+    this.fabricCobalt = fabric('fabricCobalt', 0x2155c4, 0x8fd8ff);
+    this.fabricCyan = fabric('fabricCyan', 0x5fd2e6, 0xe0fbff);
+    this.fabricLime = fabric('fabricLime', 0xa6dc4a, 0xf2ffd0);
+    this.maple = new THREE.MeshStandardMaterial({ name: 'maple', color: PALETTE.maple, roughness: 0.45 });
+    this.frostedGlass = new THREE.MeshPhysicalMaterial({
+      name: 'frostedGlass',
+      color: 0xf2fbff,
+      roughness: 0.45,
+      transparent: true,
+      opacity: 0.6,
+      emissive: 0xfff6e6,
+      emissiveIntensity: 0.9,
+      depthWrite: false,
+    });
+    this.glossBlack = glossyPhys('glossBlack', 0x0f1820, 0.12);
+    const fl = assets.flutedPanels();
+    fl.repeat.set(0.5, 0.3);
+    this.flutedWall = new THREE.MeshStandardMaterial({ name: 'flutedWall', map: fl, color: 0xe6f1f7, roughness: 0.42 });
+    this.rug = new THREE.MeshStandardMaterial({ name: 'rug', map: assets.rug(), roughness: 0.95 });
+    for (const m of [this.floorTile, this.wetTile, this.paving, this.lawn, this.wallPanels, this.cobaltMosaic, this.terrazzo, this.wetStone, this.flutedWall]) m.userData.worldUV = true;
   }
 
   /**
    * Mosaic pool tile with animated caustics below `waterLevel`. One material per water level;
    * `strength` can be driven by light groups (e.g. pool lights).
    */
-  poolTileAt(waterLevel: number, strength: THREE.IUniform<number> = { value: 0.55 }, key = ''): THREE.MeshStandardMaterial {
-    const k = `${waterLevel.toFixed(2)}:${key}`;
+  poolTileAt(waterLevel: number, strength: THREE.IUniform<number> = { value: 0.55 }, key = '', style: 'cyan' | 'cobalt' = 'cyan'): THREE.MeshStandardMaterial {
+    const k = `${waterLevel.toFixed(2)}:${key}:${style}`;
     let m = this.poolTiles.get(k);
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ name: `poolTile${k}`, map: this.mosaic, roughness: 0.2 });
+      const map = style === 'cobalt' ? (this.cobaltMosaic.map as THREE.Texture) : this.mosaic;
+      m = new THREE.MeshStandardMaterial({ name: `poolTile${k}`, map, roughness: 0.18 });
       m.userData.worldUV = true;
       addPatch(m, causticsPatch({ value: waterLevel }, strength));
       this.poolTiles.set(k, m);

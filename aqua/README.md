@@ -59,6 +59,15 @@ npm test
 
 O jogo pausa sozinho quando a janela perde o foco ou a aba fica oculta; ao voltar, clique em **Retomar**.
 
+## Novidades da v0.2 — identidade visual
+
+- **Sistema visual documentado** em [`docs/SISTEMA_VISUAL.md`](docs/SISTEMA_VISUAL.md): paleta com regras de contraste, materiais, componentes arquitetônicos, mobiliário, sinalização, iluminação por ambiente e orçamento de desempenho.
+- **Átrio Azul reformado**: piso de terrazzo com incrustações e halo de mosaico, pedra molhada ao redor da piscina, paredes caneladas com rodapé de mosaico cobalto e sanca de luz, colunas-lótus com faixa cobalto, portais cobalto com sinalização integrada, nervuras orgânicas no teto, piscina em mosaico cobalto com vitórias-régias, pedestal da fonte torneado, lounge com sofá curvo, poltronas-ovo, mesa de vidro e tapete, balcão de recepção com monitor, totens com mapa do complexo, bebedouro, lixeiras de reciclagem, luminárias-bolha, novas plantas (bananeira ornamental, espada-de-são-jorge, trepadeiras pendentes) e variação de cor entre plantas.
+- **Água**: o espelho d'água do Átrio reflete o próprio salão (reflexo local "assado" no carregamento, com correção de paralaxe), bordas com menisco e espuma, ondulações contínuas onde os jatos caem (somem quando a fonte desliga).
+- **Iluminação por ambiente**: luz de céu, reflexo ambiente, sol e exposição mudam suavemente entre salões, aquário, jardins e terraço.
+- **Interface** na nova linguagem (cobalto, ciano, toque limão) e placas no novo padrão.
+- Próxima área planejada: **Mercado Aqua** — ver [`docs/ROTEIRO.md`](docs/ROTEIRO.md).
+
 ## O que existe no mundo
 
 O complexo ocupa um platô de aproximadamente 100 × 115 m sobre o mar, com todos os ambientes ligados por caminhos que se percorrem a pé (sem teletransporte).
@@ -141,7 +150,7 @@ Todas aplicam na hora e ficam salvas no navegador: sensibilidade do mouse, inver
 ## Água: o que é real e o que é simulado
 
 - Superfícies animadas com ondas e ruído de normais em várias escalas, ondulações locais quando o jogador anda na água ou um objeto cai, correnteza no canal.
-- **Reflexo**: do céu (cubemap gerado do céu procedural) com termo de Fresnel e brilho especular do sol. Construções **não** aparecem refletidas.
+- **Reflexo**: do céu (cubemap gerado do céu procedural) com termo de Fresnel e brilho especular do sol. Na piscina do Átrio, um **reflexo local** do próprio salão é capturado uma vez no carregamento (cube map com correção de paralaxe por esfera): colunas, paredes e a esfera aparecem refletidas, mas objetos que se movem (jogador, esferas, jatos) não. O piso polido do Átrio usa o mesmo reflexo. Nas demais águas, só o céu.
 - **Profundidade / refração**: simuladas por cor (raso → profundo conforme o ângulo), transparência e cáusticas animadas no fundo das piscinas. Não há refração fisicamente correta.
 - **Aquários**: a absorção da luz é calculada pela distância que o raio de visão percorre dentro do volume do tanque (caixa ou cilindro), mais escurecimento com a profundidade e cáusticas — uma aproximação, não uma simulação ótica.
 - Fontes: partículas balísticas calculadas na GPU, arcos e cortinas como malhas com shader de fluxo que "enchem" e "esvaziam" ao ligar/desligar.
@@ -175,7 +184,7 @@ Carga medida com `renderer.info` no perfil Alto: no ponto inicial do átrio, cer
 
 - Sem natação/mergulho; piscinas e canal são rasos e servem para caminhar.
 - Física simplificada: apenas esferas carregáveis; colisões por caixas, cilindros e rampas (paredes curvas aproximadas por segmentos).
-- Reflexos da água mostram apenas o céu; refração é simulada.
+- Reflexos da água: o Átrio usa um reflexo local estático; as outras águas refletem só o céu. Refração é simulada.
 - Sombras do sol cobrem ~68 × 68 m ao redor do jogador.
 - Sem suporte a gamepad nem a dispositivos de toque.
 - No Chrome, após sair do mouse capturado com `Esc`, o navegador pode recusar recapturar por cerca de 1 s; o jogo mostra "Clique na tela para capturar o mouse" e basta clicar novamente.

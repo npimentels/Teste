@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { QualityAware, QualityProfile, Updatable } from '../core/types';
 import { damp } from '../core/math';
+import type { AmbienceProfile } from '../world/Palette';
 
 /** Sun, sky fill and the switchable accent light groups of each zone. */
 export class LightingSystem implements QualityAware {
@@ -10,6 +11,9 @@ export class LightingSystem implements QualityAware {
   readonly sunColor = new THREE.Color(1.0, 0.96, 0.88);
   private readonly target = new THREE.Object3D();
   private shadowExtent = 34;
+  /** Current blended ambience (see Palette.AMBIENCE). */
+  readonly ambience: AmbienceProfile = { hemi: 0.6, env: 0.55, sun: 3.4, exposure: 1 };
+  private ambienceTarget: AmbienceProfile = { ...this.ambience };
 
   constructor(private readonly scene: THREE.Scene) {
     this.hemi = new THREE.HemisphereLight(0xeef8ff, 0xc9dccb, 0.6);
@@ -40,6 +44,25 @@ export class LightingSystem implements QualityAware {
     this.target.position.set(fx, 0, fz);
     this.sun.position.set(fx + this.sunDir.x * 90, this.sunDir.y * 90, fz + this.sunDir.z * 90);
     this.target.updateMatrixWorld();
+  }
+
+  /** Selects the lighting rules for the kind of space the viewer is in. */
+  setAmbience(profile: AmbienceProfile, instant = false): void {
+    this.ambienceTarget = profile;
+    if (instant) Object.assign(this.ambience, profile);
+  }
+
+  /** Blends towards the target ambience and applies it to lights and scene. */
+  updateAmbience(dt: number): void {
+    const a = this.ambience;
+    const t = this.ambienceTarget;
+    a.hemi = damp(a.hemi, t.hemi, 1.5, dt);
+    a.env = damp(a.env, t.env, 1.5, dt);
+    a.sun = damp(a.sun, t.sun, 1.5, dt);
+    a.exposure = damp(a.exposure, t.exposure, 1.5, dt);
+    this.hemi.intensity = a.hemi;
+    this.sun.intensity = a.sun;
+    this.scene.environmentIntensity = a.env;
   }
 
   applyQuality(profile: QualityProfile): void {

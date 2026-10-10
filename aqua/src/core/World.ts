@@ -20,6 +20,7 @@ import { Surroundings } from '../world/Surroundings';
 import { HydraulicGardens } from '../world/HydraulicGardens';
 import { AquariumGallery } from '../world/AquariumGallery';
 import { HorizonTerrace } from '../world/HorizonTerrace';
+import { disposeFurnitureCache } from '../world/Furniture';
 
 export type ProgressFn = (fraction: number, label: string) => Promise<void>;
 
@@ -44,6 +45,7 @@ export class World {
   private readonly heroGlass: THREE.MeshPhysicalMaterial[] = [];
   private readonly ballGeometries = new Map<number, THREE.SphereGeometry>();
   private environment: { dispose(): void } | null = null;
+  private readonly probes: Array<{ dispose(): void }> = [];
   private builder!: WorldBuilder;
   zones: { atrium?: Atrium; gardens?: HydraulicGardens; gallery?: AquariumGallery; terrace?: HorizonTerrace; surroundings?: Surroundings } = {};
 
@@ -137,6 +139,8 @@ export class World {
     this.scene.environment = env.env;
     this.scene.environmentIntensity = 0.55;
     this.water.setEnvironment(env.cube);
+    await progress(0.93, 'Refletindo o átrio na água…');
+    if (this.zones.atrium) this.probes.push(this.zones.atrium.bakeReflections(this.renderer, this.scene, this.water));
     this.lighting.applyQuality(this.perf.profile);
     await progress(0.96, 'Compilando shaders…');
   }
@@ -192,6 +196,8 @@ export class World {
     this.mats.dispose();
     this.assets.dispose();
     this.environment?.dispose();
+    for (const p of this.probes) p.dispose();
+    disposeFurnitureCache();
     this.lighting.dispose();
     for (const g of this.ballGeometries.values()) g.dispose();
     this.scene.clear();

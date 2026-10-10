@@ -157,14 +157,18 @@ export class WorldBuilder {
 
   sphere(material: THREE.Material, x: number, y: number, z: number, r: number, o: PlaceOptions = {}): THREE.Mesh | null {
     const key = `sph:${r.toFixed(3)}`;
-    const geometry = this.cachedGeometry(key, () => new THREE.SphereGeometry(r, 32, 20));
+    // segment count follows the size: small knobs and globes do not need 32×20
+    const ws = Math.round(Math.min(32, Math.max(10, r * 48)));
+    const geometry = this.cachedGeometry(key, () => new THREE.SphereGeometry(r, ws, Math.max(7, Math.round(ws * 0.6))));
     return this.place(geometry, material, x, y, z, o);
   }
 
   torus(material: THREE.Material, x: number, y: number, z: number, r: number, tube: number, o: PlaceOptions & { arc?: number } = {}): THREE.Mesh | null {
     const arc = o.arc ?? Math.PI * 2;
     const key = `tor:${r.toFixed(3)}:${tube.toFixed(3)}:${arc.toFixed(3)}`;
-    const geometry = this.cachedGeometry(key, () => new THREE.TorusGeometry(r, tube, 12, Math.max(24, Math.round(r * 24 * (arc / Math.PI / 2))), arc));
+    const radial = tube < 0.05 ? 6 : tube < 0.15 ? 8 : 12;
+    const tubular = Math.max(16, Math.min(160, Math.round(r * 12 * (arc / Math.PI / 2))));
+    const geometry = this.cachedGeometry(key, () => new THREE.TorusGeometry(r, tube, radial, tubular, arc));
     return this.place(geometry, material, x, y, z, o);
   }
 
@@ -283,20 +287,28 @@ export class WorldBuilder {
     return path;
   }
 
-  /** Text sign on a slim post. */
-  sign(text: string, arrow: '←' | '→' | '↑' | '', x: number, z: number, rotY: number, y = 2.2): void {
-    const tex = this.assets.sign(text, arrow);
-    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.25 });
+  /**
+   * Wayfinding sign (see AssetManager.sign for the visual standard): a rounded cobalt board
+   * with chrome rim on a slim chrome post, readable from both sides.
+   */
+  sign(text: string, arrow: '←' | '→' | '↑' | '', x: number, z: number, rotY: number, y = 2.2, color = '#28c5df'): void {
+    const tex = this.assets.sign(text, arrow, color);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false });
     mat.name = `sign:${text}`;
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), mat);
-    board.position.set(x, y, z);
-    board.rotation.y = rotY;
-    this.root.add(board);
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), mat);
-    back.position.set(x, y, z);
-    back.rotation.y = rotY + Math.PI;
-    this.root.add(back);
-    this.cylinder(this.mats.chrome, x, 0, z, 0.04, 0.04, y - 0.2, { segments: 10, collide: 'metal' });
+    const w = 1.9;
+    const h = w / 4;
+    const c = Math.cos(rotY);
+    const s = Math.sin(rotY);
+    this.box(this.mats.cobaltDeep, x, y - h * 0.44, z, w - h, h * 0.88, 0.05, { rotY, radius: 0.02, cast: false });
+    for (const side of [1, -1]) {
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      board.position.set(x + s * 0.03 * side, y, z + c * 0.03 * side);
+      board.rotation.y = side > 0 ? rotY : rotY + Math.PI;
+      board.renderOrder = 8;
+      this.root.add(board);
+    }
+    this.cylinder(this.mats.chrome, x, 0, z, 0.04, 0.05, y - h / 2, { segments: 12, collide: 'metal' });
+    this.cylinder(this.mats.cobaltCeramic, x, 0, z, 0.16, 0.2, 0.06, { segments: 20, cast: false });
   }
 
   /**

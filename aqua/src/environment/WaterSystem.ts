@@ -4,6 +4,7 @@ import type { QualityAware, QualityProfile, Updatable } from '../core/types';
 import { damp } from '../core/math';
 
 const MAX_RIPPLES = 10;
+const MAX_SOURCES = 10;
 
 export interface WaterLook {
   shallow: THREE.ColorRepresentation;
@@ -14,6 +15,8 @@ export interface WaterLook {
   waveAmp: number;
   /** Strength of the small-scale normal detail. */
   normalScale: number;
+  /** Strength of the bright meniscus / foam line along the edges (0 for open sea). */
+  edgeFoam?: number;
   /** World-space scale of the detail noise (bigger = finer ripples). */
   detailScale: number;
   /** Distance over which small ripples fade out (prevents sparkle / aliasing far away). */
@@ -24,7 +27,7 @@ export const WATER_LOOKS = {
   pool: { shallow: 0x5fe3ee, deep: 0x0a92bf, depth: 0.25, opacity: 0.55, waveAmp: 0.012, normalScale: 1, detailScale: 1 },
   canal: { shallow: 0x46d4dc, deep: 0x077fa6, depth: 0.45, opacity: 0.62, waveAmp: 0.015, normalScale: 1.1, detailScale: 1 },
   infinity: { shallow: 0x58dcf0, deep: 0x0779b8, depth: 0.55, opacity: 0.6, waveAmp: 0.01, normalScale: 0.9, detailScale: 0.9 },
-  ocean: { shallow: 0x1aa6c8, deep: 0x05568f, depth: 0.8, opacity: 1, waveAmp: 0.25, normalScale: 0.9, detailScale: 0.08, fadeDistance: 260 },
+  ocean: { shallow: 0x1aa6c8, deep: 0x05568f, depth: 0.8, opacity: 1, waveAmp: 0.25, normalScale: 0.9, detailScale: 0.08, fadeDistance: 260, edgeFoam: 0 },
   tankTop: { shallow: 0x3fd0e6, deep: 0x066a9a, depth: 0.7, opacity: 0.8, waveAmp: 0.01, normalScale: 1, detailScale: 1 },
 } satisfies Record<string, WaterLook>;
 
@@ -57,6 +60,10 @@ export class WaterBody {
   targetLevel = 0;
   readonly flow = new THREE.Vector2();
   readonly targetFlow = new THREE.Vector2();
+  /** Multiplier for the continuous jet disturbances (follows a fountain's on/off state). */
+  sourceGain = 1;
+  /** True once a local reflection probe replaced the sky reflection. */
+  hasProbe = false;
 
   constructor(opts: WaterBodyOptions, material: THREE.ShaderMaterial) {
     this.name = opts.name;
@@ -82,6 +89,25 @@ export class WaterBody {
       this.targetFlow.copy(opts.flow);
     }
     material.uniforms.uFlow.value = this.flow;
+    const u = material.uniforms;
+    const s = opts.shape;
+    u.uEdgeKind.value = s.kind === 'circle' ? 1 : 2;
+    u.uEdgeCenter.value.set(s.x, s.z);
+    if (s.kind === 'circle') u.uEdgeSize.value.set(s.r, s.r);
+    else u.uEdgeSize.value.set(s.hx, s.hz);
+  }
+
+  /**
+   * Continuous disturbances (where jets hit the water): x, z, strength, ring speed.
+   * Up to MAX_SOURCES (10) per body.
+   */
+  setSources(sources: Array<{ x: number; z: number; strength: number; speed?: number }>): void {
+    const arr = this.mesh.material.uniforms.uSources.value as THREE.Vector4[];
+    for (let i = 0; i < arr.length; i++) {
+      const src = sources[i];
+      if (src) arr[i].set(src.x, src.z, src.strength, src.speed ?? 9);
+      else arr[i].set(0, 0, 0, 0);
+    }
   }
 
   get surfaceY(): number {
@@ -104,6 +130,7 @@ export class WaterBody {
     this.flow.y = damp(this.flow.y, this.targetFlow.y, 0.9, dt);
     this.mesh.position.y = this.surfaceY;
     this.mesh.material.uniforms.uFlowOffset.value.addScaledVector(this.flow, dt);
+    this.mesh.material.uniforms.uSourceGain.value = this.sourceGain;
   }
 }
 
@@ -145,8 +172,44 @@ export class WaterSystem implements Updatable, QualityAware {
 
   setEnvironment(cube: THREE.CubeTexture): void {
     this.shared.uEnv.value = cube;
-    for (const b of this.bodies) b.mesh.material.needsUpdate = true;
+    for (const b of this.bodies) if (!b.hasProbe) b.mesh.material.uniforms.uEnv.value = cube;
   }
+
+  /**
+   * Bakes a local reflection probe (cube map of the real surroundings) at `position` and makes
+   * the given bodies reflect it with a sphere-proxy parallax correction of `radius` metres.
+   * Done once at load: predictable cost, coherent reflections of nearby architecture.
+   * Returns a PMREM version usable as `envMap` for nearby glossy floors.
+   */
+  bakeProbe(renderer: THREE.WebGLRenderer, scene: THREE.Scene, position: THREE.Vector3, radius: number, bodies: WaterBody[], hide: THREE.Object3D[] = [], size = 256): { env: THREE.Texture; dispose: () => void } {
+    const rt = new THREE.WebGLCubeRenderTarget(size, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+    const cam = new THREE.CubeCamera(0.2, 2500, rt);
+    cam.position.copy(position);
+    const hidden = [this.group, ...hide].map((o) => [o, o.visible] as const);
+    for (const [o] of hidden) o.visible = false;
+    cam.update(renderer, scene);
+    for (const [o, v] of hidden) o.visible = v;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envRT = pmrem.fromCubemap(rt.texture);
+    pmrem.dispose();
+    for (const b of bodies) {
+      const u = b.mesh.material.uniforms;
+      u.uEnv.value = rt.texture;
+      u.uProbePos.value.copy(position);
+      u.uProbeRadius.value = radius;
+      b.hasProbe = true;
+    }
+    this.probes.push(rt, envRT);
+    return {
+      env: envRT.texture,
+      dispose: () => {
+        rt.dispose();
+        envRT.dispose();
+      },
+    };
+  }
+
+  private readonly probes: Array<THREE.WebGLCubeRenderTarget | THREE.WebGLRenderTarget> = [];
 
   add(opts: WaterBodyOptions): WaterBody {
     const material = this.createMaterial(opts.look);
@@ -174,6 +237,15 @@ export class WaterSystem implements Updatable, QualityAware {
         uFadeDist: { value: look.fadeDistance ?? 45 },
         uFlow: { value: new THREE.Vector2() },
         uFlowOffset: { value: new THREE.Vector2() },
+        uEnv: { value: this.shared.uEnv.value },
+        uProbePos: { value: new THREE.Vector3() },
+        uProbeRadius: { value: 0 },
+        uEdgeKind: { value: 0 },
+        uEdgeCenter: { value: new THREE.Vector2() },
+        uEdgeSize: { value: new THREE.Vector2() },
+        uEdgeFoam: { value: look.edgeFoam ?? 1 },
+        uSources: { value: Array.from({ length: MAX_SOURCES }, () => new THREE.Vector4()) },
+        uSourceGain: { value: 1 },
       },
       vertexShader: WATER_VERTEX,
       fragmentShader: WATER_FRAGMENT,
@@ -222,6 +294,8 @@ export class WaterSystem implements Updatable, QualityAware {
     }
     this.bodies.length = 0;
     this.group.clear();
+    for (const p of this.probes) p.dispose();
+    this.probes.length = 0;
   }
 }
 
@@ -272,6 +346,14 @@ const WATER_FRAGMENT = /* glsl */ `
   uniform vec4 uRipples[${MAX_RIPPLES}];
   uniform vec3 uSkyHorizon;
   uniform vec3 uSkyZenith;
+  uniform vec3 uProbePos;
+  uniform float uProbeRadius;
+  uniform float uEdgeKind;
+  uniform vec2 uEdgeCenter;
+  uniform vec2 uEdgeSize;
+  uniform float uEdgeFoam;
+  uniform vec4 uSources[${MAX_SOURCES}];
+  uniform float uSourceGain;
   varying vec3 vWorld;
   #include <common>
   #include <fog_pars_fragment>
@@ -317,6 +399,17 @@ const WATER_FRAGMENT = /* glsl */ `
       float env = exp(-x * x * 4.0) * exp(-age * 1.3) * r.w;
       g += (d / dist) * cos(x * 11.0) * env * 0.5;
     }
+    // continuous rings where fountain jets land
+    if (uSourceGain > 0.01) {
+      for (int i = 0; i < ${MAX_SOURCES}; i++) {
+        vec4 s = uSources[i];
+        if (s.z <= 0.0) continue;
+        vec2 d = p - s.xy;
+        float dd = length(d) + 1e-3;
+        float env = exp(-dd * 2.4) * s.z * uSourceGain;
+        g += (d / dd) * (cos(dd * 17.0 - uTime * s.w) * 0.7 + cos(dd * 31.0 - uTime * s.w * 1.7) * 0.3) * env * 0.14;
+      }
+    }
     return g;
   }
 
@@ -329,7 +422,17 @@ const WATER_FRAGMENT = /* glsl */ `
     vec3 R = reflect(-V, N);
     R.y = abs(R.y);
     vec3 skyRefl = mix(uSkyHorizon, uSkyZenith, pow(R.y, 0.5));
-    vec3 refl = mix(skyRefl, texture(uEnv, R).rgb, uEnvStrength);
+    // Local probe: correct the lookup direction against a sphere proxy of the surroundings
+    // so nearby walls / columns appear where they really are.
+    vec3 Rs = R;
+    if (uProbeRadius > 0.0) {
+      vec3 o = vWorld - uProbePos;
+      float pb = dot(o, R);
+      float pc = dot(o, o) - uProbeRadius * uProbeRadius;
+      float ph = pb * pb - pc;
+      if (ph > 0.0) Rs = normalize(o + R * (-pb + sqrt(ph)));
+    }
+    vec3 refl = mix(skyRefl, texture(uEnv, Rs).rgb, uEnvStrength);
 
     // Body colour: deeper / darker at grazing angles, light patterns from the floor.
     float grazing = 1.0 - NdV;
@@ -339,8 +442,21 @@ const WATER_FRAGMENT = /* glsl */ `
 
     float sunAlign = max(dot(R, uSunDir), 0.0);
     float spec = pow(sunAlign, 520.0) * 9.0 + pow(sunAlign, 60.0) * 0.35;
+    // Edge: slightly deeper colour just inside, a bright meniscus and broken foam on the rim.
+    float edgeD = 1e3;
+    if (uEdgeKind > 0.5 && uEdgeKind < 1.5) edgeD = uEdgeSize.x - length(vWorld.xz - uEdgeCenter);
+    else if (uEdgeKind > 1.5) {
+      vec2 q = abs(vWorld.xz - uEdgeCenter);
+      edgeD = min(uEdgeSize.x - q.x, uEdgeSize.y - q.y);
+    }
+    float foamN = aquaNoise(vWorld.xz * 7.0 + vec2(uTime * 0.5, -uTime * 0.35)) * aquaNoise(vWorld.xz * 3.1 - uTime * 0.2);
+    float foam = (1.0 - smoothstep(0.0, 0.2, edgeD)) * (0.35 + foamN * 1.3) * uEdgeFoam;
+    float meniscus = (1.0 - smoothstep(0.0, 0.035, edgeD)) * uEdgeFoam;
+    body *= 1.0 - 0.12 * smoothstep(0.9, 0.25, edgeD) * uEdgeFoam;
+
     vec3 col = mix(body, refl, clamp(fres * 1.05, 0.0, 1.0)) + uSunColor * spec;
-    float alpha = clamp(mix(uOpacity, 1.0, fres) + spec * 0.5, 0.0, 1.0);
+    col = mix(col, vec3(0.93, 0.99, 1.0), clamp(foam * 0.5 + meniscus * 0.6, 0.0, 0.85));
+    float alpha = clamp(mix(uOpacity, 1.0, fres) + spec * 0.5 + foam * 0.35 + meniscus * 0.4, 0.0, 1.0);
     gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>

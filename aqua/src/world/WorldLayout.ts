@@ -11,6 +11,13 @@ export const LAYOUT = {
   gallery: { x0: 16.3, x1: 43.2, halfW: 2.5, tankDepth: 6.5, room: { x: 50, z: 0, r: 7 }, ceiling: 4 },
   gardens: { z0: -18, z1: -64, canal: { x0: -25.5, x1: 24, z0: -41, z1: -37, floor: -0.4, water: -0.08 } },
   terrace: { x0: -24, x1: 24, z0: -84.5, z1: -66, y: 4 },
+  /**
+   * Reserved sites for planned areas (NOT built yet — see docs/ROTEIRO.md). Kept here so new
+   * features avoid placing props inside them.
+   */
+  planned: {
+    market: { x0: 19, x1: 46, z0: 11.5, z1: 26 },
+  },
   /** Plateau outline (the cliff edge). */
   outline: [
     [-34, 28],

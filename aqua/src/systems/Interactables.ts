@@ -244,7 +244,7 @@ export class ControlPanel implements Interactable, Updatable {
     roundRect(ctx, 10, 8, w - 20, h * 0.42, 26);
     ctx.fill();
     // header
-    ctx.fillStyle = '#087dae';
+    ctx.fillStyle = '#1747b5';
     ctx.font = '600 34px "Segoe UI", "Frutiger", "Myriad Pro", Arial, sans-serif';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
