@@ -1,18 +1,15 @@
-// Avatar e pets: movimento por caminho, animação e IA simples dos bichinhos.
+// Avatar e pets: movimento por caminho (8 direções), poses, itens na mão,
+// natação e a IA dos bichinhos.
 
-import { TILE, WALK_SPEED, PET_SPEED } from './config.js';
+import { TILE, WALK_SPEED, PET_SPEED, SIT_OFFSET } from './config.js';
 import { findPath } from './path.js';
-import { PET_KINDS } from './characters.js';
+import { PET_KINDS } from './pets.js';
+import { dirFromVec, HAND_ITEMS } from './avatar.js';
+import { POOL } from './furni_jardim.js';
 
 const center = (t) => t * TILE + TILE / 2;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-// Vista a partir de um vetor de grade (dx, dy)
-export function viewFor(dx, dy) {
-  const sx = dx - dy, sy = dx + dy;
-  return { view: sy < 0 ? 'back' : 'front', flip: sx < 0 };
-}
 
 class Walker {
   constructor(x, y) {
@@ -23,18 +20,19 @@ class Walker {
     this.z = 0;
     this.path = [];
     this.onArrive = null;
-    this.face = { view: 'front', flip: false };
+    this.dir = 0;
     this.anim = 0;
   }
 
   get moving() { return this.path.length > 0; }
+
+  face(dx, dy) { if (dx || dy) this.dir = dirFromVec(dx, dy); }
 
   goTo(game, tx, ty, opt = {}) {
     const room = game.room;
     const pass = (x, y) => room.walkable(x, y, { pet: opt.pet }) && !(opt.avoid && opt.avoid(x, y));
     const p = findPath(room.w, room.d, pass, [this.tx, this.ty], [tx, ty]);
     if (!p) return false;
-    // destino precisa ser andável, a não ser que seja assento/cama
     if (p.length && !opt.allowGoal && !pass(tx, ty)) p.pop();
     this.path = p;
     this.onArrive = opt.then || null;
@@ -42,20 +40,21 @@ class Walker {
     return true;
   }
 
-  stepMove(dt, speed) {
+  stepMove(dt, speed, game) {
     if (!this.path.length) return false;
     const [nx, ny] = this.path[0];
     const gx = center(nx), gy = center(ny);
     const dx = gx - this.x, dy = gy - this.y;
     const dist = Math.hypot(dx, dy);
     const step = speed * dt;
-    if (dist > 0.01) this.face = viewFor(Math.sign(Math.round(dx)), Math.sign(Math.round(dy)));
+    if (dist > 0.01) this.face(Math.sign(Math.round(dx)), Math.sign(Math.round(dy)));
     if (dist <= step) {
       this.x = gx;
       this.y = gy;
       this.tx = nx;
       this.ty = ny;
       this.path.shift();
+      if (this.onTile) this.onTile(game);
       if (!this.path.length && this.onArrive) {
         const f = this.onArrive;
         this.onArrive = null;
@@ -69,96 +68,8 @@ class Walker {
     return true;
   }
 
-  // Caixa 3D para ordenação de profundidade
-  box(h = 30, r = 4) {
+  box(h = 70, r = 7) {
     return { x0: this.x - r, x1: this.x + r, y0: this.y - r, y1: this.y + r, z0: this.z, z1: this.z + h };
-  }
-}
-
-// ------------------------------------------------------------------ avatar
-export class Avatar extends Walker {
-  constructor(x, y, look) {
-    super(x, y);
-    this.look = look;
-    this.pose = 'stand'; // stand | sit | lay | wave | dance
-    this.seat = null;
-    this.poseTimer = 0;
-    this.blinkT = rnd(2, 5);
-    this.blink = false;
-  }
-
-  standUp() {
-    if (this.seat) {
-      this.seat.item.occupied = false;
-      this.seat = null;
-      // desce do móvel para o tile livre mais próximo
-      const room = this.game && this.game.room;
-      const spot = room && nearestFree(room, this.tx, this.ty);
-      if (spot) {
-        [this.tx, this.ty] = spot;
-        this.x = center(spot[0]);
-        this.y = center(spot[1]);
-      }
-    }
-    this.pose = 'stand';
-    this.z = 0;
-  }
-
-  walkTo(game, tx, ty, then) {
-    const wasSeated = this.seat;
-    if (this.pose !== 'stand') this.standUp();
-    if (wasSeated && wasSeated.def.lay) game.room.touch();
-    return this.goTo(game, tx, ty, { then, allowGoal: !!then });
-  }
-
-  sitOn(game, item, tx, ty) {
-    const def = game.room.def(item);
-    this.standUp();
-    this.tx = tx;
-    this.ty = ty;
-    this.x = center(tx);
-    this.y = center(ty);
-    const f = [[0, 1], [1, 0], [0, -1], [-1, 0]][item.rot & 3];
-    this.face = viewFor(f[0], f[1]);
-    this.seat = { uid: item.uid, def, item };
-    if (def.lay) {
-      this.pose = 'lay';
-      item.occupied = true;
-      const [hx, hy] = rotPoint(def.lay.head, def.size, item.rot);
-      this.x = item.x * TILE + hx;
-      this.y = item.y * TILE + hy;
-      this.z = item.z + def.lay.z;
-      this.face = { view: 'front', flip: false };
-    } else {
-      this.pose = 'sit';
-      this.z = item.z + def.sit.z;
-    }
-  }
-
-  update(dt, game) {
-    this.blinkT -= dt;
-    if (this.blinkT < 0) {
-      this.blink = !this.blink;
-      this.blinkT = this.blink ? 0.12 : rnd(2, 5);
-    }
-    if (this.seat) {
-      const it = game.room.items.find((i) => i.uid === this.seat.uid);
-      if (!it) this.standUp();
-    }
-    const moved = this.stepMove(dt, WALK_SPEED);
-    if (moved) return;
-    this.anim += dt;
-    if (this.pose === 'wave' || this.pose === 'dance') {
-      this.poseTimer -= dt;
-      if (this.poseTimer <= 0 && this.pose === 'wave') this.pose = 'stand';
-    }
-  }
-
-  spritePose() {
-    if (this.moving) return 'walk' + (Math.floor(this.anim * 8) % 4);
-    if (this.pose === 'wave') return 'wave' + (Math.floor(this.anim * 4) % 2);
-    if (this.pose === 'dance') return 'dance' + (Math.floor(this.anim * 5) % 4);
-    return this.pose;
   }
 }
 
@@ -166,12 +77,12 @@ function nearestFree(room, tx, ty) {
   if (room.walkable(tx, ty)) return [tx, ty];
   const seen = new Set([tx + ',' + ty]);
   let frontier = [[tx, ty]];
-  for (let step = 0; step < 6 && frontier.length; step++) {
+  for (let step = 0; step < 8 && frontier.length; step++) {
     const next = [];
     for (const [x, y] of frontier)
       for (const [dx, dy] of [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
         const nx = x + dx, ny = y + dy, k = nx + ',' + ny;
-        if (seen.has(k) || !room.inside(nx, ny)) continue;
+        if (seen.has(k) || nx < 0 || ny < 0 || nx >= room.w || ny >= room.d) continue;
         seen.add(k);
         if (room.walkable(nx, ny)) return [nx, ny];
         next.push([nx, ny]);
@@ -191,6 +102,133 @@ export function rotPoint([x, y], size, rot) {
     default: return [x, y];
   }
 }
+const FRONT = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+
+// ------------------------------------------------------------------ avatar
+export class Avatar extends Walker {
+  constructor(x, y, look) {
+    super(x, y);
+    this.look = look;
+    this.pose = 'stand'; // stand | sit | lay | wave | dance | swim
+    this.seat = null;
+    this.poseTimer = 0;
+    this.blinkT = rnd(2, 5);
+    this.blink = false;
+    this.hand = null; // { item, left, t, sip }
+    this.swimming = false;
+    this.onTile = (game) => this.checkWater(game);
+  }
+
+  checkWater(game) {
+    const sw = game.room.swimAt(this.tx, this.ty);
+    if (sw !== this.swimming) {
+      this.swimming = sw;
+      if (sw) game.fx.splash(this.x, this.y);
+    }
+    this.z = sw ? POOL.surface - 30 : 0;
+  }
+
+  standUp() {
+    if (this.seat) {
+      this.seat.item.occupied = false;
+      this.seat = null;
+      const room = this.game && this.game.room;
+      const spot = room && nearestFree(room, this.tx, this.ty);
+      if (spot) { [this.tx, this.ty] = spot; this.x = center(spot[0]); this.y = center(spot[1]); }
+    }
+    this.pose = 'stand';
+    this.cut = null;
+    if (this.game) this.checkWater(this.game); else this.z = 0;
+  }
+
+  walkTo(game, tx, ty, then) {
+    const seated = this.seat;
+    if (this.pose !== 'stand') this.standUp();
+    if (seated && seated.def.lay) game.room.version++;
+    return this.goTo(game, tx, ty, { then, allowGoal: !!then });
+  }
+
+  sitOn(game, item, tx, ty) {
+    const def = game.room.def(item);
+    this.standUp();
+    this.tx = tx;
+    this.ty = ty;
+    this.x = center(tx);
+    this.y = center(ty);
+    const f = FRONT[item.rot & 3];
+    this.face(f[0], f[1]);
+    this.seat = { uid: item.uid, def, item };
+    this.swimming = false;
+    if (def.lay) {
+      this.pose = 'lay';
+      item.occupied = true;
+      const [hx, hy] = rotPoint(def.lay.head, def.size, item.rot);
+      this.x = item.x * TILE + hx;
+      this.y = item.y * TILE + hy;
+      this.z = item.z + def.lay.z - 52;
+      game.room.version++;
+    } else {
+      this.pose = 'sit';
+      this.z = item.z + def.sit.z - SIT_OFFSET;
+      this.cut = def.sit.cut != null ? item.z + def.sit.cut - this.z : null;
+    }
+  }
+
+  give(game, itemId) {
+    const info = HAND_ITEMS[itemId];
+    if (!info) return;
+    this.hand = { item: itemId, left: info.sips, t: 1.2, sip: 0 };
+    game.ui.bubble(this, `*pega ${info.name.toLowerCase()}*`, true);
+  }
+
+  drop() { this.hand = null; }
+
+  update(dt, game) {
+    this.blinkT -= dt;
+    if (this.blinkT < 0) {
+      this.blink = !this.blink;
+      this.blinkT = this.blink ? 0.12 : rnd(2, 5);
+    }
+    if (this.seat && !game.room.items.includes(this.seat.item)) this.standUp();
+    // goles / mordidas
+    if (this.hand) {
+      const h = this.hand;
+      if (h.sip > 0) h.sip -= dt;
+      else {
+        h.t -= dt;
+        if (h.t <= 0) {
+          h.sip = 0.9;
+          h.left--;
+          h.t = rnd(3, 5);
+          const food = ['bolo', 'pizza', 'maca', 'cookie', 'pipoca', 'rosquinha'].includes(h.item);
+          for (let i = 0; i < 3; i++) game.fx.spawn(food ? 'crumb' : 'drop', this.x, this.y, this.z + 52);
+          if (h.left <= 0) {
+            setTimeout(() => { this.hand = null; game.ui.bubble(this, food ? 'Hmm, que delícia!' : 'Ahh, refrescante!', true); }, 900);
+          }
+        }
+      }
+    }
+    const moved = this.stepMove(dt, this.swimming ? WALK_SPEED * 0.6 : WALK_SPEED, game);
+    if (moved) return;
+    this.anim += dt;
+    if (this.pose === 'wave' || this.pose === 'dance') {
+      this.poseTimer -= dt;
+      if (this.poseTimer <= 0 && this.pose === 'wave') this.pose = 'stand';
+    }
+    if (this.swimming && Math.random() < dt * 0.8) game.fx.splash(this.x, this.y, true);
+  }
+
+  // [pose, frame]
+  spritePose() {
+    if (this.swimming && this.pose !== 'sit' && this.pose !== 'lay') return ['swim', Math.floor(this.anim * (this.moving ? 6 : 2)) % 4];
+    if (this.moving) return ['walk', Math.floor(this.anim * 8) % 4];
+    if (this.pose === 'wave') return ['wave', Math.floor(this.anim * 4) % 2];
+    if (this.pose === 'dance') return ['dance', Math.floor(this.anim * 5) % 4];
+    if (this.hand && this.hand.sip > 0 && this.pose !== 'lay') return [this.pose === 'sit' ? 'sitsip' : 'sip', 0];
+    if (this.hand && this.pose !== 'lay') return [this.pose === 'sit' ? 'sithold' : 'hold', 0];
+    return [this.pose, 0];
+  }
+}
 
 // -------------------------------------------------------------------- pets
 export class Pet extends Walker {
@@ -205,7 +243,7 @@ export class Pet extends Walker {
     this.love = data.love ?? 0;
     this.state = 'idle';
     this.timer = rnd(1, 3);
-    this.face = { view: 'front', flip: Math.random() < 0.5 };
+    this.dir = Math.floor(Math.random() * 8);
   }
 
   toJSON() {
@@ -216,25 +254,22 @@ export class Pet extends Walker {
 
   say(game, text) { game.ui.bubble(this, text ?? pick(this.info.sound), true); }
 
-  setState(s, t) {
-    this.state = s;
-    this.timer = t;
-  }
+  setState(s, t) { this.state = s; this.timer = t; }
 
   go(game, tx, ty, then) {
-    const ok = this.goTo(game, tx, ty, { pet: true, then, allowGoal: true });
+    this.z = 0;
+    const ok = this.goTo(game, tx, ty, { pet: true, then, allowGoal: true, avoid: (x, y) => game.room.swimAt(x, y) });
     if (ok) this.state = 'walk';
     return ok;
   }
 
   near(game, tx, ty) {
-    // tile livre ao lado de (tx, ty)
     const opts = [];
     for (let dx = -1; dx <= 1; dx++)
       for (let dy = -1; dy <= 1; dy++) {
         if (!dx && !dy) continue;
         const x = tx + dx, y = ty + dy;
-        if (game.room.walkable(x, y, { pet: true })) opts.push([x, y]);
+        if (game.room.walkable(x, y, { pet: true }) && !game.room.swimAt(x, y)) opts.push([x, y]);
       }
     return opts.length ? pick(opts) : null;
   }
@@ -243,31 +278,28 @@ export class Pet extends Walker {
     this.hunger = Math.min(100, this.hunger + dt * 0.9);
     if (this.state === 'sleep') this.energy = Math.min(100, this.energy + dt * 6);
     else this.energy = Math.max(0, this.energy - dt * 0.7);
-
-    if (this.stepMove(dt, PET_SPEED)) return;
+    if (this.stepMove(dt, PET_SPEED, game)) return;
     if (this.state === 'walk') this.setState('idle', rnd(0.5, 2));
-
     this.timer -= dt;
     this.anim += dt;
-    if (this.state === 'sleep' && Math.random() < dt * 0.8) game.fx.spawn('zzz', this.x, this.y, this.z + 10);
-    if (this.state === 'happy' && Math.random() < dt * 3) game.fx.spawn('heart', this.x, this.y, this.z + 14);
-    if (this.state === 'eat' && Math.random() < dt * 2) game.fx.spawn('sparkle', this.x, this.y, this.z + 6);
+    if (this.state === 'sleep' && Math.random() < dt * 0.8) game.fx.spawn('zzz', this.x, this.y, this.z + 18);
+    if (this.state === 'happy' && Math.random() < dt * 3) game.fx.spawn('heart', this.x, this.y, this.z + 28);
+    if (this.state === 'eat' && Math.random() < dt * 2) game.fx.spawn('crumb', this.x, this.y, this.z + 10);
     if (this.timer > 0) return;
     this.think(game);
   }
 
   think(game) {
     const room = game.room;
-    this.z = 0;
     if (this.state === 'sleep') this.energy = 100;
     if (this.state === 'eat') this.hunger = 0;
-
+    this.z = 0;
     if (this.hunger > 75) {
       const bowl = room.findAll((d) => d.pet === 'bowl')[0];
       if (bowl) {
         const spot = this.near(game, bowl.x, bowl.y);
         if (spot && this.go(game, spot[0], spot[1], () => {
-          this.face = viewFor(Math.sign(bowl.x - this.tx), Math.sign(bowl.y - this.ty));
+          this.face(Math.sign(bowl.x - this.tx), Math.sign(bowl.y - this.ty));
           this.setState('eat', 4);
           this.say(game, this.kind === 'gato' ? 'Nham nham~' : 'Nhac nhac!');
         })) return;
@@ -277,7 +309,7 @@ export class Pet extends Walker {
       const bed = room.findAll((d) => d.pet === 'bed').find((b) => !game.pets.some((p) => p !== this && p.tx === b.x && p.ty === b.y));
       const target = bed ? [bed.x, bed.y] : [this.tx, this.ty];
       if (this.go(game, target[0], target[1], () => {
-        if (bed) this.z = 3;
+        if (bed) { this.z = bed.z + (room.def(bed).petZ || 3); const [fw, fd] = room.footprint(bed); this.x = (bed.x + fw / 2) * TILE; this.y = (bed.y + fd / 2) * TILE; }
         this.setState('sleep', rnd(12, 22));
       })) return;
     }
@@ -287,26 +319,25 @@ export class Pet extends Walker {
     if (r < followChance) {
       const spot = this.near(game, av.tx, av.ty);
       if (spot && this.go(game, spot[0], spot[1], () => {
-        this.face = viewFor(Math.sign(av.tx - this.tx), Math.sign(av.ty - this.ty));
+        this.face(Math.sign(av.tx - this.tx), Math.sign(av.ty - this.ty));
         this.setState('sit', rnd(2, 5));
         if (Math.random() < 0.35) this.say(game);
       })) return;
     }
     if (r < 0.75) {
       for (let tries = 0; tries < 8; tries++) {
-        const x = this.tx + Math.round(rnd(-4, 4)), y = this.ty + Math.round(rnd(-4, 4));
-        if (room.walkable(x, y, { pet: true }) && this.go(game, x, y)) return;
+        const x = this.tx + Math.round(rnd(-5, 5)), y = this.ty + Math.round(rnd(-5, 5));
+        if (room.walkable(x, y, { pet: true }) && !room.swimAt(x, y) && this.go(game, x, y)) return;
       }
     }
     this.setState(Math.random() < 0.6 ? 'sit' : 'idle', rnd(2, 5));
     if (Math.random() < 0.15) this.say(game);
   }
 
-  // Interações vindas do jogador
   pet(game) {
     this.love++;
-    this.setState('happy', 2.5);
     this.path = [];
+    this.setState('happy', 2.5);
     this.say(game, this.kind === 'gato' ? 'Prrrrr ♥' : 'Au! ♥');
   }
 
@@ -321,17 +352,18 @@ export class Pet extends Walker {
     const av = game.avatar;
     const spot = this.near(game, av.tx, av.ty);
     if (spot) this.go(game, spot[0], spot[1], () => {
-      this.face = viewFor(Math.sign(av.tx - this.tx), Math.sign(av.ty - this.ty));
+      this.face(Math.sign(av.tx - this.tx), Math.sign(av.ty - this.ty));
       this.setState('happy', 2);
     });
     this.say(game, this.kind === 'gato' ? 'Mrrr?' : 'Au?');
   }
 
+  // [pose, frame]
   spritePose() {
-    if (this.moving) return Math.floor(this.anim * 7) % 2 ? 'walk' : 'stand';
-    if (this.state === 'sleep') return 'sleep';
-    if (this.state === 'sit' || this.state === 'eat') return 'sit';
-    if (this.state === 'happy') return Math.floor(this.anim * 6) % 2 ? 'sit' : 'stand';
-    return 'stand';
+    if (this.moving) return ['walk', Math.floor(this.anim * 8) % 4];
+    if (this.state === 'sleep') return ['sleep', 0];
+    if (this.state === 'sit' || this.state === 'eat') return ['sit', 0];
+    if (this.state === 'happy') return ['happy', Math.floor(this.anim * 6) % 4];
+    return ['stand', 0];
   }
 }

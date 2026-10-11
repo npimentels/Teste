@@ -414,3 +414,104 @@ textarea { width: 100%; min-height: 90px; box-sizing: border-box; font-size: 12p
   #toast { transition: none; }
   .tool:hover { transform: none; }
 }
+
+/* ------------------------------------------------------- inventário */
+#win-inventory { left: 16px; top: 74px; width: 440px; }
+.inv-body { display: flex; flex-direction: column; min-height: 0; }
+.inv-tabs { display: flex; gap: 4px; padding: 8px 8px 0; }
+.inv-tabs button, .ward-tab {
+  background: var(--paper-2);
+  border: 2px solid var(--ink);
+  border-bottom: 0;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.inv-tabs button.on { background: var(--paper-hi); }
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 5px;
+  padding: 8px;
+  border-top: 3px solid var(--ink);
+  max-height: 260px;
+  min-height: 140px;
+  overflow: auto;
+  background: var(--paper-2);
+}
+.inv-detail { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px; border-top: 3px solid var(--ink); }
+.cat-item { position: relative; }
+.count, .badge {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  background: var(--plum);
+  color: var(--paper-hi);
+  font-family: var(--font-label);
+  font-size: 9px;
+  padding: 1px 4px;
+  border: 1px solid var(--ink);
+}
+.badge { top: 2px; bottom: auto; }
+.tool .icon { position: relative; }
+.empty { grid-column: 1 / -1; color: var(--ink-soft); font-size: 14px; margin: 8px; }
+
+/* ----------------------------------------------------- guarda-roupa */
+#win-wardrobe { left: 50%; top: 50%; transform: translate(-50%, -50%); width: 760px; }
+.ward-body { display: grid; grid-template-columns: 1fr 190px 170px; min-height: 0; }
+.ward-left { display: flex; flex-direction: column; min-width: 0; border-right: 3px solid var(--ink); }
+.ward-tabs { display: flex; flex-wrap: wrap; gap: 3px; padding: 8px 8px 0; background: var(--plum-2); }
+.ward-tab { padding: 3px 4px 1px; background: var(--paper-2); }
+.ward-tab canvas { width: 30px; height: 30px; image-rendering: auto; }
+.ward-tab.on { background: var(--paper); transform: translateY(1px); }
+.ward-opts { display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow: auto; max-height: 420px; }
+.styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 5px; }
+.style {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper-hi);
+  border: 2px solid var(--paper-3);
+  cursor: pointer;
+  padding: 0;
+}
+.style canvas { max-width: 52px; max-height: 56px; }
+.style.on { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--gold); background: #fff3c9; }
+.palette { display: grid; grid-template-columns: repeat(auto-fill, 22px); gap: 3px; }
+.pcolor { width: 22px; height: 22px; border: 2px solid var(--ink); padding: 0; cursor: pointer; box-shadow: inset 2px 2px 0 rgba(255,255,255,.35), inset -2px -2px 0 rgba(0,0,0,.2); }
+.pcolor.on { outline: 3px solid var(--gold); outline-offset: 1px; }
+.genders { display: flex; gap: 10px; }
+.gender { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--paper-2); border: 2px solid var(--ink); cursor: pointer; font-size: 16px; }
+.gender.on { background: var(--gold); }
+.gender .sym { font-size: 22px; font-weight: 700; }
+.sym.m { color: #3a6ab8; }
+.sym.f { color: #c94f8a; }
+.ward-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 10px; border-right: 3px solid var(--ink); }
+.ward-preview { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ward-preview .stage {
+  width: 160px;
+  height: 250px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8px;
+  background: radial-gradient(ellipse at 50% 92%, rgba(0,0,0,.18) 0 18%, transparent 19%), repeating-conic-gradient(var(--paper) 0 25%, var(--paper-hi) 0 50%) 0 0 / 16px 16px;
+  border: 2px solid var(--ink);
+}
+.row.center { justify-content: center; }
+.ward-right { display: flex; flex-direction: column; padding: 8px; gap: 6px; background: var(--paper-2); }
+.ward-rtitle { font-family: var(--font-label); font-size: 10px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 1px; }
+.ward-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; overflow: auto; }
+.slot { display: flex; flex-direction: column; gap: 3px; align-items: stretch; }
+.slot-prev { height: 108px; background: var(--paper); border: 2px solid var(--paper-3); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.slot-prev:hover { border-color: var(--ink); }
+.slot-prev canvas { max-height: 100px; }
+
+@media (max-width: 860px) {
+  #win-inventory, #win-wardrobe { left: 8px; right: 8px; top: 64px; width: auto; transform: none; max-height: calc(100vh - 230px); }
+  .ward-body { grid-template-columns: 1fr; }
+  .ward-left, .ward-mid { border-right: 0; border-bottom: 3px solid var(--ink); }
+  .ward-preview .stage { height: 180px; }
+  .ward-slots { grid-template-columns: repeat(3, 1fr); }
+}

@@ -24,6 +24,10 @@ function load(rel) {
     const binds = names.split(',').map((n) => n.trim()).filter(Boolean).map((n) => n.replace(/\s+as\s+/, ': ')).join(', ');
     return `const { ${binds} } = __mod['${dep}'];`;
   });
+  code = code.replace(/^import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s+from\s*'\.\/([^']+)';?$/gm, (_, name, dep) => {
+    deps.push(dep);
+    return `const ${name} = __mod['${dep}'];`;
+  });
   code = code.replace(/^export\s+(const|let|function|class|async function)\s+([A-Za-z_$][\w$]*)/gm, (_, kw, name) => {
     exportsList.push(name);
     return `${kw} ${name}`;

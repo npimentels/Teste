@@ -1,0 +1,8 @@
+<!doctype html><html><head><meta charset="utf-8"><title>pets</title><style>body{background:#7a2340;color:#fff;font:11px monospace}canvas{image-rendering:pixelated}.row{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end}</style></head><body><div id="o"></div>
+<script type="module">
+import { petSprite } from '../src/pets.js';
+const o = document.getElementById('o');
+for (const k of ['cachorro','gato']) for (const c of [0,2]) { const row=document.createElement('div'); row.className='row';
+ for (const [p,f] of [['stand',0],['walk',0],['walk',2],['sit',0],['sleep',0],['happy',1]]) for (const d of (p==='stand'?[0,1,2,3,4]:[0,1])) {
+  const s = petSprite(k,c,p,f,d); const cv=document.createElement('canvas'); cv.width=s.w*4; cv.height=s.h*4; const x=cv.getContext('2d'); x.imageSmoothingEnabled=false; x.drawImage(s.canvas,0,0,cv.width,cv.height); row.append(cv);} o.append(row);}
+</script></body></html>

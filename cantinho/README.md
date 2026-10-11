@@ -1,15 +1,17 @@
 # Cantinho
 
-Um quartinho isométrico em pixel art para decorar, construir e viver — primo do
-**Habbo Hotel** na mecânica (mobis, empilhamento, balões de fala, infostand) e
-do **Witchbrook** na estética (paleta quente, luz dourada, toque bruxinho).
+Um apê isométrico em pixel art para decorar, construir e viver — primo do
+**Habbo Hotel** na mecânica (mobis, empilhamento, inventário, guarda-roupa,
+comestíveis, balões de fala) e do **Witchbrook** no clima (luz dourada, toque
+bruxinho).
 
-Sem dependências e sem etapa de build: é HTML + JavaScript puro.
+Escala do Habbo: tiles de **64 × 32 px** e avatar de ~72 px, em **8 direções**.
+Sem dependências e sem etapa de build: HTML + JavaScript puro.
 
 ## Como jogar
 
 O navegador bloqueia módulos JavaScript abertos direto do disco (`file://`),
-então rode um servidor local qualquer dentro desta pasta:
+então rode um servidor local dentro desta pasta:
 
 ```bash
 cd cantinho
@@ -18,8 +20,7 @@ python3 -m http.server 8000      # ou: npx http-server -p 8000
 
 Abra `http://localhost:8000`.
 
-Para gerar uma **versão em arquivo único** (abre com duplo clique, sem
-servidor):
+Para gerar uma **versão em arquivo único** (abre com duplo clique):
 
 ```bash
 node tools/build.mjs             # gera dist/cantinho.html
@@ -29,78 +30,76 @@ node tools/build.mjs             # gera dist/cantinho.html
 
 | Ação | Como |
 |------|------|
-| Andar | clique no chão, ou WASD / setas |
-| Sentar / deitar | clique num sofá, poltrona, cadeira ou cama |
-| Usar mobi (luz, porta, TV, lareira…) | duplo clique (ou duplo toque) |
-| Abrir o catálogo | botão **Catálogo** ou tecla `C` |
-| Girar mobi | `R` ou botão direito durante o posicionamento |
-| Mover / guardar mobi selecionada | `M` / `Delete` |
+| Andar | clique no chão, ou WASD / setas (8 direções) |
+| Sentar / deitar | clique num sofá, cadeira, cama, espreguiçadeira, banheira… |
+| Usar mobi | duplo clique (luz, porta, TV, chuveiro, cortina…) |
+| Comer / beber | duplo clique no bolo, pizza, café… ou "Pegar" na geladeira |
+| Nadar | ande para dentro da piscina |
+| Catálogo · Inventário | botões ou teclas `C` · `I` |
+| Girar · mover · guardar | `R` · `M` · `Delete` |
 | Conversar | `Enter` — `o/` acena, `:dançar`, `:sentar`, `:levantar` |
 | Câmera | arraste o quarto; roda do mouse ou `+`/`-` para zoom |
 
-Chame um pet pelo nome no chat e ele vem até você.
+## O que existe
 
-## O que já existe
-
-- **Quarto isométrico** 2:1 com piso e paredes trocáveis (5 pisos × 5 papéis
-  de parede, várias cores) e 4 tamanhos de quarto.
-- **45 mobílias** em 8 categorias (Sala, Quarto, Cozinha, Plantas, Mágico,
-  Parede, Construção, Pets), cada uma com várias cores e **4 rotações**.
-- **Mobis com estado**: portas que abrem e fecham (fechada bloqueia a
-  passagem), luminárias, TV animada, lareira, caldeirão borbulhante,
-  guarda-roupa, baú, geladeira, cortinas…
-- **Empilhamento** estilo Habbo: mesas, criados e balcões aceitam objetos em cima.
-- **Mobis de parede**: janela (o céu muda com a hora), quadros, pôster, relógio
-  com a hora real, prateleira de poções, arandela, varal de luzinhas.
-- **Avatar** customizável (pele, 4 cabelos, cores, chapéu de bruxa, gorro,
-  flor) que anda, senta, deita, acena e dança.
-- **Pets com vida**: cachorros e gatos que passeiam, seguem você, comem no
-  pote, dormem na caminha e pedem carinho.
-- **Dia, entardecer e noite** (automático pelo relógio ou manual), com luzes
-  dinâmicas e feixes de sol entrando pela janela.
-- **Salvamento automático** no navegador + exportar/importar o quarto como código.
+- **Avatar estilo Habbo** com 8 direções, andar, sentar, deitar, acenar,
+  dançar, nadar, segurar e comer/beber itens.
+- **Guarda-roupa** igual ao do Habbo: menino/menina, 12 tons de pele,
+  11 cabelos, 8 chapéus, 9 blusas, 5 calças/saias, 5 sapatos, 6 acessórios,
+  paleta de cores, preview girável e 6 looks salvos em "Meu Guarda-Roupa".
+- **mais de 120 mobílias** em 12 categorias: sala, quarto, cozinha, banheiro, jardim
+  (com piscina modular), comidas, plantas, decoração, mágico, parede,
+  construção (portas, divisórias, pisos) e pets.
+- **Comestíveis animados**: o bolo perde fatia por fatia, a pizza pedaço por
+  pedaço; geladeira, máquina de café, bule, jarra, pipoqueira e carrinho de
+  sorvete servem itens na mão. O avatar dá goles e mordidas com migalhas.
+- **Inventário** de mobis e de pets; comprar no catálogo manda para o
+  inventário ou já posiciona no quarto.
+- **Planta editável**: formatos (retângulo, L, recuo, T), 4 tamanhos até
+  20 × 16 e edição piso a piso; as paredes se ajustam sozinhas.
+- **Pets 3D** (cachorro e gato) que passeiam, seguem você, comem, dormem e
+  pedem carinho.
+- **Dia, entardecer e noite** com luzes dinâmicas, feixes de sol nas janelas e
+  um interruptor que apaga todas as luminárias.
+- **Salvamento automático** + exportar/importar o quarto como código.
 
 ## Estrutura
 
 ```
 cantinho/
-├── index.html
-├── css/style.css          interface (painéis de pergaminho)
+├── index.html · css/style.css
 ├── src/
-│   ├── main.js            ponto de entrada
-│   ├── game.js            controlador: entrada, ações, salvar
-│   ├── room.js            grade, regras de posicionamento e empilhamento
-│   ├── furniture.js       catálogo de mobílias (a arte de cada peça)
-│   ├── raster.js          rasterizador isométrico de sprites
-│   ├── sprites.js         cache de sprites e miniaturas
-│   ├── characters.js      avatar, pets e ícones (mapas de pixel)
-│   ├── entities.js        movimento, poses e IA dos pets
-│   ├── path.js            A* com 8 direções
-│   ├── renderer.js        cena, profundidade, luz e sombras
-│   ├── ui.js              catálogo, visual, ajustes, infostand, balões
-│   ├── color.js           sombreamento com variação de matiz
-│   └── config.js          constantes do mundo
-├── dev/sheet.html         folha com todos os sprites (para desenhar/revisar)
-├── tools/build.mjs        gera a versão em arquivo único
-└── DESIGN.md              direção de arte e próximos passos
+│   ├── main.js · game.js       entrada, controle, ações, salvar
+│   ├── room.js                 planta, paredes, regras, empilhamento
+│   ├── starter.js              apartamento inicial decorado
+│   ├── raster.js · sdf.js      motor de pixel art (caixas, revolução, SDF)
+│   ├── furni_base.js           paleta e utilitários de arte
+│   ├── furni_*.js              catálogo por categoria
+│   ├── furniture.js            registro do catálogo
+│   ├── avatar.js · pets.js     personagens 3D → pixel art, guarda-roupa
+│   ├── entities.js · path.js   movimento, poses, IA, A*
+│   ├── renderer.js             cena, profundidade, luz, água
+│   ├── ui.js                   catálogo, inventário, guarda-roupa, infostand
+│   └── sprites.js · color.js · characters.js · config.js
+├── dev/                        folhas de sprites (mobílias, avatar, pets)
+├── tools/build.mjs             versão em arquivo único
+└── DESIGN.md                   direção de arte e próximos passos
 ```
 
 ## Criando uma mobília nova
 
-Toda a arte é gerada por código a partir de primitivas 3D, então uma mobi
-nova é só um objeto em `src/furniture.js`:
+Uma mobi é um objeto num dos arquivos `src/furni_*.js`:
 
 ```js
 add({
-  id: 'banquinho', name: 'Banquinho', cat: 'sala', size: [1, 1], h: 14,
-  sit: { z: 10 }, variants: ['#b0744a', '#d94f4f'],
+  id: 'banquinho', name: 'Banquinho', cat: 'sala', size: [1, 1], h: 22,
+  sit: { z: 16 }, variants: [C.oak, C.walnut],
   draw(r, o) {
-    legs(r, 3, 3, 13, 13, 8, C.woodD);        // 4 pés
-    r.box(2, 2, 8, 12, 12, 3, o.color);       // assento: x, y, z, larg, prof, alt
+    legs(r, 6, 6, 26, 26, 14, C.black, 3);          // 4 pés
+    cushion(r, 5, 5, 14, 22, 22, 5, o.color);       // assento fofinho
   },
 });
 ```
 
-Abra `dev/sheet.html` (com o servidor rodando) para ver a peça em todas as
-rotações e estados. Detalhes das primitivas e regras de arte estão em
-[DESIGN.md](DESIGN.md).
+Abra `dev/sheet.html?cat=sala&rots&states` (com o servidor rodando) para ver a
+peça em todas as rotações e estados. Detalhes em [DESIGN.md](DESIGN.md).

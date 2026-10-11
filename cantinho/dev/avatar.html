@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Cantinho — avatar</title>
+<style>body{background:#7a2340;color:#fff;font:11px monospace;margin:10px}canvas{image-rendering:pixelated}.row{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;margin-bottom:8px}.c{display:flex;flex-direction:column;align-items:center}</style></head>
+<body><div id="out"></div><script type="module">
+import { avatarSprite, DEFAULT_LOOK, DEFAULT_LOOK_M } from '../src/avatar.js';
+const q = new URLSearchParams(location.search);
+const S = +(q.get('s') || 3);
+const out = document.getElementById('out');
+const looks = [DEFAULT_LOOK, DEFAULT_LOOK_M,
+  { ...DEFAULT_LOOK, hair: 'longo', hairColor: '#e2683c', hat: 'bruxa', hatColor: '#4a2f7a', top: 'vestido', topColor: '#3a6ab8', shoes: 'sapatilha', shoesColor: '#2a2a30', acc: 'colar', accColor: '#e6b83c' },
+  { ...DEFAULT_LOOK_M, skin: '#7a462c', hair: 'cacheado', hairColor: '#2a201e', top: 'jaqueta', topColor: '#b8323a', bottom: 'bermuda', bottomColor: '#6e6c6a', acc: 'oculos', shoes: 'botas', shoesColor: '#8e6a3c' },
+];
+const poses = (q.get('poses') || 'stand0,walk0,walk1,walk2,sit0,wave0,dance0,hold0,sip0').split(',');
+const t0 = performance.now(); let n = 0;
+for (const look of looks.slice(0, +(q.get('n') || 4))) {
+  const row = document.createElement('div'); row.className = 'row';
+  for (const ps of poses) {
+    const pose = ps.replace(/\d+$/, ''), fr = +ps.match(/\d+$/)[0];
+    const dirs = q.get('dirs') ? q.get('dirs').split(',').map(Number) : (pose === 'stand' ? [0,1,2,3,4,5,6,7] : [0, 1]);
+    for (const d of dirs) {
+      const spr = avatarSprite(look, pose, fr, d, { hand: pose === 'hold' || pose === 'sip' ? 'cafe' : null }); n++;
+      const c = document.createElement('canvas'); c.width = spr.w * S; c.height = spr.h * S;
+      const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(spr.canvas, 0, 0, c.width, c.height);
+      const cell = document.createElement('div'); cell.className = 'c'; cell.append(c, ps + ' d' + d); row.append(cell);
+    }
+  }
+  out.append(row);
+}
+console.log('render ms/sprite', ((performance.now() - t0) / n).toFixed(1));
+</script></body></html>

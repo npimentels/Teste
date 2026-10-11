@@ -2,12 +2,12 @@
 
 ## A ideia
 
-Um espaço pequeno onde tudo pode ser construído e onde existe vida. Da
-mecânica do **Habbo Hotel** vêm as "mobis" com estado, o empilhamento, o
-infostand, o chat em balões e o quarto isométrico flutuando no vazio. Da
-estética do **Witchbrook** vêm a paleta quente, a luz dourada de fim de tarde,
-o clima aconchegante e um toque de bruxaria (caldeirão, bola de cristal,
-poções, chapéu de bruxa).
+Um espaço onde tudo pode ser construído e onde existe vida. Do **Habbo Hotel**
+vêm as mobis com estado, o empilhamento, o inventário, o guarda-roupa, os
+comestíveis, o infostand e os balões de fala. Do **Witchbrook** vêm a luz
+dourada, o clima aconchegante e o toque de bruxaria. As referências de
+decoração são os quartos de designers da comunidade Habbo: ambientes integrados,
+madeira escura, branco, mármore, plantas grandes e muitos objetos pequenos.
 
 ## Bíblia de arte
 
@@ -15,82 +15,62 @@ poções, chapéu de bruxa).
 
 | Item | Valor |
 |------|-------|
-| Projeção | isométrica 2:1 (dimétrica de pixel art) |
-| Tile | losango de **32 × 16 px** |
-| Unidade | 1 tile = 16 unidades em X e Y; Z em pixels |
+| Projeção | dimétrica 2:1 (a do Habbo) |
+| Tile | losango de **64 × 32 px** |
+| Unidade | 1 tile = 32 unidades em X e Y; Z em pixels |
 | Fórmula | `sx = x − y` · `sy = (x + y)/2 − z` |
-| Parede | 76 px de altura, 6 de espessura |
-| Escala na tela | sempre inteira (×2, ×3, ×4…), pixels nítidos |
+| Parede | 124 px de altura, 8 de espessura |
+| Avatar | ~72 px sem chapéu, 8 direções |
+| Escala na tela | sempre inteira, pixels nítidos |
 
-As linhas diagonais seguem sempre o degrau **2 por 1**. Isso é garantido pelo
-rasterizador: nenhuma peça é desenhada "à mão livre" na diagonal.
+### Como a arte é gerada
 
-### Luz e sombreamento
-
-- **Luz vindo da esquerda**: topo claro, face esquerda média, face direita
-  escura (o mesmo do Habbo).
-- **Variação de matiz** (`color.js`): tons claros puxam para o amarelo quente,
-  tons escuros para o azul-violeta. As sombras ficam coloridas, nunca acinzentadas.
-- **Contorno colorido** (sel-out): a silhueta recebe a própria cor bem escurecida,
-  não preto puro.
-- **Linha de contato**: onde uma peça passa na frente de outra, o pixel de trás
-  escurece, separando almofada de sofá, gaveta de móvel etc.
-- **Brilho de aresta**: a quina frontal do topo e a quina vertical ganham 1 px
-  mais claro, o que dá o acabamento "plástico" das mobis do Habbo.
-
-### Paleta
-
-Base quente e terrosa, com acentos saturados para o que é mágico ou emite luz.
-
-| Papel | Cores |
-|-------|-------|
-| Madeiras | `#b0744a` `#7d4c31` `#d39b63` `#8e3f2f` |
-| Tecidos | `#4a9a92` `#c96b80` `#d9a23b` `#8f7bc2` `#7fa86b` `#4b6aa3` |
-| Neutros | `#f1e4c6` creme · `#f3efe6` branco quente · `#2b2232` tinta |
-| Mágico / luz | `#6fe08a` poção · `#b07cf0` cristal · `#ffd35a` chama · `#e8b34b` ouro |
-| Ambiente noite | `#3a3f75` (multiplicado sobre a cena) |
-| Ambiente entardecer | `#d9a6a0` |
-
-### Personagens
-
-- Avatar: 20 × 34 px, proporção chibi (cabeça grande ≈ 40% da altura).
-- Vistas: frente (3/4 direita) e costas; as direções da esquerda são espelhadas.
-- Cada letra do mapa é um papel (pele, cabelo, camisa…) recolorido em tempo
-  real, então um desenho gera todas as combinações de visual.
-- Pets: perfil voltado para a direita (≈ 16–18 px), poses `stand`, `walk`,
-  `sit` e `sleep`.
-
-### Como a arte é feita (rasterizador)
-
-Cada mobi é "esculpida" em `furniture.js` com três primitivas:
+Tudo é desenhado por código, então cada peça nova sai com a mesma luz, paleta e
+acabamento, nas 4 rotações:
 
 | Primitiva | Uso |
 |-----------|-----|
-| `r.box(x, y, z, w, d, h, cor, { tex })` | caixas: tampos, pés, portas, almofadas |
-| `r.lathe(cx, cy, z, perfil, cor)` | sólidos de revolução: vasos, abajures, caldeirão |
-| `r.map(x, y, z, linhas, paleta)` | pixel art à mão: folhas, chamas, flores |
-| `r.pts([[x, y, z, cor], …])` | pontos soltos: fios, varal de luzes |
+| `r.box(...)` | caixas com texturas por face: tampos, gavetas, portas |
+| `r.lathe(...)` | sólidos de revolução: vasos, abajures, pés torneados |
+| `r.sdf([...])` | formas orgânicas: almofadas, louças, folhagens, o avatar |
+| `r.map(...)` · `r.pts(...)` | pixel art à mão e pontos (rostos, fios, luzinhas) |
 
-As texturas (`tex.left`, `tex.right`, `tex.top`, `tex.back`) recebem as
-coordenadas da face e devolvem um deslocamento de sombra, uma cor ou
-`{ raw }` para pixels que brilham (telas, chamas, céu). A rotação é gratuita:
-o mesmo desenho gera as 4 direções, com a luz recalculada.
+O rasterizador tem **z-buffer** (peças que se cruzam ficam certas), suporta
+**vidro e água translúcidos** e faz um pós-processamento com contorno escuro,
+linha de contato entre peças e brilho de aresta.
+
+### Personagens: pré-render 3D → pixel art
+
+O avatar é um boneco 3D articulado (cabeça, tronco, braços e pernas) que é
+renderizado para pixel art nas 8 direções do Habbo, com a mesma luz das
+mobílias e contorno quase preto. Olhos, cílios, boca e óculos são carimbos de
+pixel desenhados à mão sobre o rosto. Cada roupa é uma regra de material sobre
+o corpo (manga curta, saia, botas…), então ela já funciona em todas as poses e
+direções. Os pets usam o mesmo sistema.
+
+### Luz e cor
+
+- Luz vindo da esquerda: topo claro, face esquerda média, direita escura.
+- Variação de matiz: claros puxam para o amarelo, escuros para o azul-violeta.
+- Noite e entardecer multiplicam a cena por uma cor ambiente; cada luminária
+  soma um halo; as janelas projetam feixes de sol no piso.
+
+### Paleta base
+
+| Papel | Cores |
+|-------|-------|
+| Madeiras | `#8a5a3c` nogueira · `#c49a6c` carvalho · `#a8734a` teca |
+| Neutros | `#f2efe9` branco · `#eceae6` mármore · `#4a4850` grafite |
+| Tecidos | `#d8d4cc` `#9fa6b3` `#4f5f7f` `#e8b4b8` `#a3b5a0` `#d9a23b` |
+| Metais | `#d9a94a` latão · `#c9d3de` cromo |
+| Natureza | `#5d9b4c` folha · `#4fb0d6` água |
 
 ## Próximos passos sugeridos
 
-1. **Sprites desenhados à mão** para peças-chave (sofá, cama, avatar) usando o
-   rasterizador como base: exportar a folha de `dev/sheet.html`, refinar no
-   Aseprite e carregar PNGs por cima das peças geradas.
-2. **Mais direções do avatar** (8 direções como no Habbo) e animações de
-   sentar no chão, carregar objetos e regar plantas.
-3. **Inventário e moedas**: mobis guardadas vão para um inventário; o catálogo
-   passa a ter preço e moedas vêm de tarefas (alimentar pets, regar plantas).
-4. **Mobis interativas de verdade**: plantas que crescem com o tempo, caldeirão
-   que produz poções, fogão que cozinha, cama que muda o horário.
-5. **Pets mais vivos**: brincar com bolinha, gato que sobe em sofá e cama,
-   humor que muda com carinho e comida, filhotes de cores raras.
-6. **Mais cômodos**: a porta de entrada leva a um corredor e a outros quartos;
-   editor de planta (pisos em L, escadas, desníveis).
-7. **Multiplayer** (o grande passo rumo ao Habbo): servidor WebSocket com salas,
-   visitas a quartos de amigos e chat compartilhado.
-8. **Som**: trilha lo-fi, crepitar da lareira, ronronar, passos por tipo de piso.
+1. **Moedas e catálogo com preços**, ganhas cuidando dos pets e regando plantas.
+2. **Mais interações**: plantas que crescem, fogão que cozinha, banho de banheira
+   que deixa o avatar cheiroso, vitrola com música de verdade.
+3. **Mais roupas e animações** (pular, deitar no chão, carregar caixas).
+4. **Vários cômodos** ligados pela porta de entrada; escadas e desníveis.
+5. **Multiplayer**: servidor WebSocket com salas, visitas e chat compartilhado.
+6. **Som**: trilha lo-fi, passos por tipo de piso, ronronar, água da piscina.
