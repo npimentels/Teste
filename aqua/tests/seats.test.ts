@@ -75,3 +75,26 @@ describe('seats', () => {
     expect(yawFacing(-1, 0)).toBeCloseTo(Math.PI / 2);
   });
 });
+
+describe('lying down', () => {
+  it('lies on a bed looking up, look limits hold, and stands back up', () => {
+    const { player, camera, seats } = setup();
+    const bed = seats.add({ id: 'bed', x: 0.9, y: 0.55, z: 0, yaw: yawFacing(0, 1), label: 'Deitar', eyeHeight: 0.3, back: 0, pose: { pitch: 0.6, pitchMin: -0.2, pitchMax: 1.45, yawRange: 1.2 } });
+    expect(bed.prompt()).toBe('Deitar');
+    bed.interact();
+    expect(bed.lying).toBe(true);
+    for (let i = 0; i < 120; i++) player.update(1 / 60, idle());
+    expect(camera.position.y).toBeCloseTo(0.85, 1);
+    expect(player.pitch).toBeCloseTo(0.6, 1);
+    // try to look far down and far to the side: limits keep the view off the mattress
+    player.pitch = -1.2;
+    player.yaw = yawFacing(0, 1) + 3;
+    player.update(1 / 60, idle());
+    expect(player.pitch).toBeGreaterThanOrEqual(-0.2);
+    seats.update(idle(['Space']) as never);
+    expect(seats.active).toBe(false);
+    for (let i = 0; i < 90; i++) player.update(1 / 60, idle());
+    expect(player.busy).toBe(false);
+    expect(camera.position.y).toBeGreaterThan(1.4);
+  });
+});

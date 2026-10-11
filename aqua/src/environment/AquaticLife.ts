@@ -199,8 +199,11 @@ export class FishSchool implements Updatable {
     materialFor: (vertexColors: boolean) => THREE.MeshStandardMaterial,
     geometries: THREE.BufferGeometry[],
     seed: number,
+    /** Fish size multiplier (small tanks use smaller fish so they never touch the glass). */
+    scale = 1,
   ) {
     const rng = createRng(seed);
+    this.s.setScalar(scale);
     const mat = materialFor(true);
     addPatch(mat, swimPatch());
     geometries.forEach((geo, si) => {
@@ -210,7 +213,7 @@ export class FishSchool implements Updatable {
       this.meshes.push(mesh);
       this.group.add(mesh);
       for (let i = 0; i < perSpecies; i++) {
-        const margin = 0.6;
+        const margin = Math.min(0.6, (volume.max.y - volume.min.y) * 0.25);
         let st: FishState;
         if (volume.shape === 1) {
           st = {
@@ -219,7 +222,7 @@ export class FishSchool implements Updatable {
             cx: volume.center.x,
             cy: randRange(rng, volume.min.y + margin, volume.max.y - margin),
             cz: volume.center.y,
-            ax: randRange(rng, 0.7, volume.radius - 0.45),
+            ax: randRange(rng, Math.min(0.7, volume.radius * 0.35), volume.radius - 0.45 * scale - 0.05),
             ay: randRange(rng, 0.1, 0.4),
             az: 0,
             speed: randRange(rng, 0.25, 0.5) * (rng() < 0.5 ? -1 : 1),
@@ -228,15 +231,21 @@ export class FishSchool implements Updatable {
         } else {
           const sx = (volume.max.x - volume.min.x) / 2;
           const sz = (volume.max.z - volume.min.z) / 2;
+          const h = volume.max.y - volume.min.y;
+          // keep the whole fish (≈0.26 m × scale from its centre) inside the glass
+          const limX = Math.max(0.05, sx - 0.26 * scale - 0.04);
+          const limZ = Math.max(0.05, sz - 0.26 * scale - 0.04);
+          const ox = randRange(rng, -1, 1) * Math.min(sx * 0.3, limX * 0.3);
+          const oz = randRange(rng, -1, 1) * Math.min(sz * 0.2, limZ * 0.2);
           st = {
             species: si,
             index: i,
-            cx: (volume.min.x + volume.max.x) / 2 + randRange(rng, -sx * 0.3, sx * 0.3),
-            cy: randRange(rng, volume.min.y + 0.8, volume.max.y - 0.6),
-            cz: (volume.min.z + volume.max.z) / 2 + randRange(rng, -sz * 0.2, sz * 0.2),
-            ax: randRange(rng, sx * 0.35, sx * 0.62),
-            ay: randRange(rng, 0.1, 0.5),
-            az: randRange(rng, sz * 0.3, sz * 0.55),
+            cx: (volume.min.x + volume.max.x) / 2 + ox,
+            cy: randRange(rng, volume.min.y + Math.min(0.8, h * 0.3), volume.max.y - Math.min(0.6, h * 0.3)),
+            cz: (volume.min.z + volume.max.z) / 2 + oz,
+            ax: Math.min(randRange(rng, sx * 0.35, sx * 0.62), limX - Math.abs(ox)),
+            ay: randRange(rng, 0.05, Math.min(0.5, h * 0.12)),
+            az: Math.min(randRange(rng, sz * 0.3, sz * 0.55), (limZ - Math.abs(oz)) * 2),
             speed: randRange(rng, 0.05, 0.11) * (rng() < 0.5 ? -1 : 1),
             phase: rng() * Math.PI * 2,
           };

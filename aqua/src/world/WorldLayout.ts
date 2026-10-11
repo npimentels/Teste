@@ -23,6 +23,19 @@ export const LAYOUT = {
   },
   /** Mercado Aqua footprint (south-east lawn, entrance facing the Átrio's south plaza). */
   market: { x0: 19, x1: 46, z0: 11.5, z1: 26 },
+  /**
+   * Ala Horizonte: an island south of the esplanade reached by a footbridge. Salão Maré
+   * (rest lounge + spa restrooms), Hotel AQUA (lobby, rooms on the 1st floor, rooftop deck)
+   * and gardens. y levels: ground 0, hotel 1st floor 4.6, roof 8.4.
+   */
+  horizonte: {
+    island: { x0: -60, x1: 22, z0: 44, z1: 118 },
+    bridge: { x0: -2.6, x1: 2.6, z0: 27.2, z1: 45 },
+    lounge: { x0: -24, x1: 16, z0: 50, z1: 76, h: 6.2 },
+    spa: { x0: 8, x1: 16, z0: 50, z1: 60, h: 3.2 },
+    skywalk: { x0: 11, x1: 14.6, z0: 76, z1: 84 },
+    hotel: { x0: -16, x1: 18, z0: 84, z1: 100, floor1: 4.6, ceil0: 4.3, roof: 8.4 },
+  },
   /** Plateau outline (the cliff edge). */
   outline: [
     [-34, 28],
@@ -45,12 +58,24 @@ export const ZONE_INFO: Record<ZoneId, { title: string; subtitle: string }> = {
   metro: { title: 'Aqua Metro', subtitle: 'Estação AQUA Central · Linha 2' },
   park: { title: 'Parque Flutuante', subtitle: 'Uma ilha-jardim no meio do mar' },
   market: { title: 'Mercado Aqua', subtitle: 'Frescor, cor e água gelada' },
+  lounge: { title: 'Salão Maré', subtitle: 'Descanso entre aquários e horizonte' },
+  hotel: { title: 'Hotel AQUA', subtitle: 'Hospedagem com vista para o amanhã' },
+  isle: { title: 'Ala Horizonte', subtitle: 'Jardins sobre o mar' },
 };
 
 export function zoneAt(x: number, y: number, z: number): ZoneId {
   const M = LAYOUT.metro;
   if (x > M.island.x0 - 2 && x < M.station.x1 + 1 && z > M.island.z0 - 2 && z < M.island.z1 + 2) return 'park';
   if (x > M.station.x0 - 0.3 && x < M.station.x1 + 1 && z > M.island.z1 && z < M.station.z1 + 0.3) return 'metro';
+  const HZ = LAYOUT.horizonte;
+  if (z > HZ.bridge.z0 + 0.5 && x > HZ.island.x0 - 2 && x < HZ.island.x1 + 2 && z < HZ.island.z1 + 2) {
+    const L = HZ.lounge;
+    if (x > L.x0 - 0.2 && x < L.x1 + 0.2 && z > L.z0 - 0.2 && z < L.z1 + 0.2) return 'lounge';
+    const H = HZ.hotel;
+    const S = HZ.skywalk;
+    if ((x > H.x0 - 0.2 && x < H.x1 + 0.2 && z > H.z0 - 0.2 && z < H.z1 + 0.2) || (x > S.x0 && x < S.x1 && z > S.z0 && z < S.z1)) return 'hotel';
+    return 'isle';
+  }
   const K = LAYOUT.market;
   if (x > K.x0 - 0.2 && x < K.x1 + 0.2 && z > K.z0 - 0.2 && z < K.z1 + 0.2) return 'market';
   if (y > 2.5 && z < -62) return 'terrace';
@@ -85,7 +110,7 @@ export function isPaved(x: number, z: number): boolean {
 
 export function surfaceAt(x: number, z: number, y: number): FootSurface {
   const zone = zoneAt(x, y, z);
-  if (zone === 'atrium' || zone === 'gallery' || zone === 'terrace' || zone === 'metro' || zone === 'market') return 'tile';
+  if (zone === 'atrium' || zone === 'gallery' || zone === 'terrace' || zone === 'metro' || zone === 'market' || zone === 'lounge' || zone === 'hotel') return 'tile';
   if (y > 0.12) return 'tile';
   return isPaved(x, z) ? 'tile' : 'grass';
 }

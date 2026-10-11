@@ -46,7 +46,12 @@ export type SfxName =
   | 'flush'
   | 'stallDoor'
   | 'fridgeOpen'
-  | 'fridgeClose';
+  | 'fridgeClose'
+  | 'elevatorMove'
+  | 'elevatorDing'
+  | 'paper'
+  | 'switch'
+  | 'card';
 
 export type WaterSoundKind = 'fountain' | 'stream' | 'waterfall' | 'bubbles' | 'hum';
 
@@ -490,6 +495,17 @@ export class AudioManager {
       loopNoise(true, [['lowpass', 140, 0.8]], 0.06, out); // fridge compressors
       loopNoise(false, [['bandpass', 3000, 1.5]], 0.004, out);
     });
+    bed('lounge', (out) => {
+      loopNoise(true, [['lowpass', 240, 0.7]], 0.05, out); // calm hall air
+      loopNoise(false, [['bandpass', 1800, 0.7]], 0.01, out, 0.05, 0.005); // distant fountain shimmer
+    });
+    bed('hotel', (out) => {
+      loopNoise(true, [['lowpass', 150, 0.8]], 0.035, out);
+    });
+    bed('isle', (out) => {
+      loopNoise(false, [['lowpass', 620, 0.5]], 0.055, out, 0.08, 0.035);
+      loopNoise(true, [['lowpass', 420, 0.6]], 0.08, out, 0.11, 0.06);
+    });
     bed('terrace', (out) => {
       loopNoise(true, [['lowpass', 520, 0.6]], 0.18, out, 0.12, 0.14); // distant surf swells
       loopNoise(false, [['bandpass', 550, 0.8]], 0.035, out, 0.06, 0.025); // wind
@@ -528,7 +544,7 @@ export class AudioManager {
       }
     }
     if (this.volumes.ambient > 0.001 && !this.paused) {
-      if ((this.zone === 'gardens' || this.zone === 'exterior' || this.zone === 'terrace' || this.zone === 'park') && now > this.nextBird) {
+      if ((this.zone === 'gardens' || this.zone === 'exterior' || this.zone === 'terrace' || this.zone === 'park' || this.zone === 'isle') && now > this.nextBird) {
         this.playBird(now + 0.05);
         this.nextBird = now + 2 + Math.random() * 6;
       }
@@ -827,6 +843,26 @@ export class AudioManager {
       case 'fridgeOpen':
         this.noiseBurst(t, 0.25, 0.05, g, 'lowpass', 1800, 600);
         this.tone(t + 0.02, 90, 0.4, 0.04, g, 'sine');
+        break;
+      case 'elevatorMove':
+        this.sweep(t, 120, 180, 2.4, 0.04, g);
+        this.noiseBurst(t, 2.2, 0.03, g, 'lowpass', 300, 500);
+        break;
+      case 'elevatorDing':
+        this.tone(t, midiHz(88), 1.4, 0.07, g, 'sine', true);
+        this.tone(t + 0.02, midiHz(100), 0.8, 0.02, g, 'sine');
+        break;
+      case 'paper':
+        this.noiseBurst(t, 0.18, 0.06, g, 'highpass', 3000, 5000);
+        this.noiseBurst(t + 0.12, 0.1, 0.04, g, 'bandpass', 2500, 3500);
+        break;
+      case 'switch':
+        this.noiseBurst(t, 0.02, 0.08, g, 'bandpass', 3000, 2500);
+        this.tone(t, 1900, 0.03, 0.04, g, 'square');
+        break;
+      case 'card':
+        this.tone(t, midiHz(84), 0.12, 0.05, g, 'sine');
+        this.tone(t + 0.1, midiHz(91), 0.22, 0.05, g, 'sine');
         break;
       case 'fridgeClose':
         this.tone(t, 110, 0.12, 0.12, g, 'sine');

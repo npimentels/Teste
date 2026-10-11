@@ -61,6 +61,94 @@ npm test
 
 O jogo pausa sozinho quando a janela perde o foco ou a aba fica oculta; ao voltar, clique em **Retomar**.
 
+## Novidades da v0.4 — Fase 3: horizonte, Ala Horizonte, hotel e vida ambiental
+
+**O mundo não é infinito**: o mapa explorável continua limitado. O que foi construído é uma **ilusão visual de
+continuidade** em camadas:
+
+- **Camada próxima (explorável)**: o complexo original + a nova **Ala Horizonte**, uma ilha ao sul da esplanada,
+  ligada por uma passarela.
+- **Camada intermediária (≈ 0,4–1,2 km, não acessível)**: cinco distritos sobre plataformas no mar.
+  - Os distritos: *Cidade das Águas*, *Distrito Sul*, *Distrito Oeste*, *Jardins do Norte* e *Ilha das Estufas*.
+  - Torres de cinco tipos (vidro afunilado com anéis-jardim, terraços-jardim empilhados, lâminas arredondadas,
+    agulhas e cúpulas), com altura, largura, rotação e material variados.
+  - Passarelas suspensas curvas com jardineiras, lagos, gramados e copas de árvores.
+  - Monotrilhos com trens circulando e barcos navegando entre os distritos.
+- **Camada distante (≈ 1,6–3,4 km)**: um anel de silhuetas de torres instanciadas que se dissolvem na névoa
+  atmosférica, com intervalos de mar aberto.
+- **Céu**: bancos de nuvens cúmulos com volume (geometria com topo iluminado, base azulada e brilho de borda),
+  sobre o céu procedural existente.
+- **Continuidade**: o viaduto da Linha 2 segue depois do Parque Flutuante rumo à Cidade das Águas e some na
+  distância. Ele é marcado como extensão "em obras": o trem continua indo só até o Parque.
+- **Água**: o oceano foi ampliado e a névoa redistribuída. A borda do mar desaparece na névoa, então não há
+  borda visível.
+
+**Ala Horizonte (explorável)**
+
+- **Passarela** com arcos iluminados, bancos, jardineiras e pilares até o mar. Termina num portal com o nome da ala.
+- **Salão Maré (salão de descanso)**:
+  - Zonas distintas:
+    - lounge de sofás em meia-lua;
+    - lago interno com fonte e ilhas plantadas;
+    - poltronas-ovo junto à janela panorâmica, com luneta;
+    - **aquário-coluna de 5 m**, marco visual do salão, rodeado de sofás curvos;
+    - **parede-recife de 24 m** com sofás de observação;
+    - aquário de nicho com banco;
+    - canto de leitura;
+    - o **Recanto dos Cavalos-Marinhos**, escondido atrás de jardineiras.
+  - Claraboias com trepadeiras, pendentes em gota, luz indireta ciano e quadros digitais gerados.
+  - Telhado-jardim sobre o bloco dos toaletes.
+- **Toaletes do Salão (banheiro spa)**, feito pela 1ª imagem de referência:
+  - Paredes cobalto brilhantes, três espelhos ovais com aro cromado e pendentes em gota.
+  - Cubas de vidro largas sobre bancada de acrílico iluminada em ciano, toalhas em prateleiras de acrílico e base
+    em pílula verde-limão.
+  - Nicho em pílula com frascos de vidro iluminados, janela redonda grande e anel de claraboia.
+  - Três cabines com portas de vidro jateado, ganchos, secadores, papel-toalha, lixeiras, ventilação e sinalização.
+- **Hotel AQUA**:
+  - **Recepção**: balcão curvo, painel luminoso, terminal de check-in, campainha, lobby com sofá e poltronas,
+    duas colunas-aquário, diretório e relógio.
+  - **Acesso aos quartos**: átrio de pé-direito duplo com escada iluminada e **elevador panorâmico de vidro** de
+    três paradas (térreo, 1º andar, cobertura).
+  - **Corredor**: numeração e placas por quarto, arandelas, faixas de luz-guia, quadros, dois aquários embutidos
+    e banco junto a um deles.
+  - **Suíte 101 · Lagoa** (ciano):
+    - cama com cabeceira acolchoada voltada para a janela panorâmica, criados-mudos com abajures;
+    - armário, espelho oval, poltrona, escrivaninha com cadeira, cortinas, tapete e planta.
+  - **Suíte 102 · Coral** (verde-limão):
+    - cama redonda com cabeceira curva e **aquário-cabeceira**;
+    - sofá junto à janela, penteadeira com espelho oval, estante com livros e cluster de luminárias-bolha.
+  - **Suítes 103 e 104**: ocupadas, com placa "não perturbe" e porta trancada (com aviso). Não prometem um
+    interior que não existe.
+  - **Cobertura (Mirante do Hotel)**: espreguiçadeiras sob pérgola, bancos, palmeiras, duas lunetas e placa.
+- **Jardins da ilha**:
+  - **Jardim das Águas** (canal com jatos, ilhas e ponte), com o **pavilhão com luneta** a oeste.
+  - **Praça da fonte** com bancos ao redor.
+  - **Mirante Sul**, na ponta da ilha.
+
+**Novas interações (todas funcionais)**
+
+| Elemento | Ação |
+| --- | --- |
+| Camas | **Sentar na cama** e **Deitar**. Deitado, a câmera fica no travesseiro olhando para a janela, com olhar limitado para não atravessar colchão nem cabeceira. **E/Espaço** levanta exatamente onde você estava. Espreguiçadeiras da cobertura usam o mesmo sistema |
+| Sofás, poltronas, bancos, pufes | Sentar e levantar. São dezenas de assentos novos na ala, mais bancos nos Jardins Hidráulicos, todos no mesmo sistema compartilhado |
+| Luminárias | Interruptores e os próprios abajures ligam e desligam grupos de luz com transição suave: lounge, janela, lobby, átrio, corredor, quartos e abajures |
+| Portas | Portas dos quartos abrem e fecham, nunca se fecham sobre o jogador e destrancam após o check-in. Portas das cabines idem. Portas automáticas de vidro na ala |
+| Cortinas | Abrir e fechar as cortinas das suítes |
+| Elevador | Chamar em qualquer andar; **Subir/Descer** no painel interno. A cabine leva o jogador, as portas de pavimento só abrem com a cabine presente e o movimento fica travado durante a viagem |
+| Recepção | Check-in no terminal (libera as suítes 101/102) e campainha |
+| Aquários | **Observar** abre uma ficha curta sobre as espécies, reais ou fictícias. Peixes nadam sem atravessar o vidro, algas balançam, bolhas sobem |
+| Lunetas (4) | Zoom (≈ 14°) e nome do ponto da cidade sob a mira, como "Torre Lume — Distrito Sul · 0,6 km" |
+| Banheiro spa | Torneiras com água e som; sabonete, que faz espuma na cuba e é enxaguada pela torneira; secadores, com luz e fluxo de ar; papel-toalha, com a folha saindo; descarga; portas das cabines; espelho e frascos para examinar |
+| Painéis, revistas, estantes, armários, guias | Examinar, com ficha no HUD |
+
+**Pontos de interesse opcionais**:
+
+- Recanto dos Cavalos-Marinhos.
+- Mirante do Hotel (pelo elevador).
+- Pavilhão-luneta do Jardim das Águas.
+- Mirante Sul.
+- Telhado-jardim dos toaletes, visto do salão.
+
 ## Novidades da v0.3 — Fase 2: Aqua Metro, Mercado e ambientes interativos
 
 - **Aqua Metro — Linha 2 (funcional, ida e volta)**: estação **AQUA Central** na borda leste do platô (entradas pela
@@ -139,6 +227,7 @@ O complexo ocupa um platô de aproximadamente 100 × 115 m sobre o mar, com todo
 | **Galeria Aquática** (leste) | Corredor envidraçado entre dois tanques com peixes, algas, corais, rochas, bolhas e feixes de luz; salão redondo com aquário-coluna do piso ao teto e janela panorâmica; saída para a esplanada | Painel **Luzes da Galeria** (luzes turquesa, cáusticas no piso, iluminação dentro dos tanques); painel **Cortina de Bolhas** |
 | **Aqua Metro — AQUA Central** (leste) | Estação com plataforma, portas de plataforma, canal interno com ponte, mezanino com escada, banheiro, máquinas de bebidas, painéis de partidas, relógio, mapa da rede | Embarcar/desembarcar, sentar, máquinas de bebidas, banheiro completo (torneiras, sabonete, secador, cabines, descarga) |
 | **Parque Flutuante** (ilha, via metrô) | Terminal com cobertura e óculo, lago com ilhas plantadas, palmeiras, bancos e mirante para o complexo | Embarcar de volta, sentar, máquina de bebidas |
+| **Ala Horizonte** (ilha ao sul, pela passarela) | Salão Maré, toaletes spa, Hotel AQUA (lobby, átrio, elevador, corredor, suítes 101/102, cobertura), Jardim das Águas, praça da fonte, Mirante Sul | Sentar/deitar, luminárias, portas, cortinas, elevador, check-in, aquários, lunetas, banheiro completo |
 | **Mercado Aqua** (sudeste) | Mercado com geladeiras de vidro, gôndolas, hortifruti, caixa, lounge na janela em arco | Geladeiras, examinar produtos, caixa, cestas carregáveis, pufes, máquina de bebidas na entrada |
 | **Terraço do Horizonte** (destino) | Deck elevado (4 m) acessado por duas rampas, piscina infinita cuja borda transborda para o horizonte, cascata na fachada, espreguiçadeiras, guarda-sóis, pavilhão de vidro, binóculo e vista para ilhas com torres e turbinas eólicas | Painel **Luzes da Piscina**; 2 boias carregáveis que flutuam |
 
@@ -184,12 +273,23 @@ src/
     MetroSignage.ts        placas, painel de partidas, relógio, mapa da rede, texturas de piso
     Restroom.ts            banheiro da estação e suas interações
     Market.ts, Products.ts Mercado Aqua; embalagens fictícias instanciadas com atlas de rótulos
+    AlaHorizonte.ts        ilha, passarela, jardins, mirantes; interiores com exibição por distância
+    Lounge.ts, Hotel.ts    Salão Maré e Hotel AQUA (casca externa + interiores)
+    SpaRestroom.ts         toaletes do salão (referência 1)
+    Horizon.ts             distritos, anel distante, nuvens cúmulos, viaduto, monotrilhos, barcos, marcos
+    Interiors.ts           mobiliário de interiores (camas, poltronas, sofás, armários, quadros…)
+    Lamps.ts               luminárias + grupos de luz comutáveis (emissivos + "poças" de luz, sem luzes dinâmicas)
+    Aquarium.ts            aquários reutilizáveis (caixa/cilindro) com vida animada só de perto
+    BathroomKit.ts         peças de banheiro interativas e parede de espelhos
+    Doors.ts               portas de abrir/correr, cortinas, "examinar"
     ArchKit.ts, Furniture.ts, Palette.ts  componentes do sistema visual (colunas, escadas, bancos…)
   systems/
     Interactables.ts       contrato `Interactable`, painel de controle com tela viva, `UseSpot` genérico
     Seats.ts               sistema único de sentar/levantar (assentos fixos ou em objetos móveis)
     TrainService.ts        máquina de estados do serviço do metrô (lógica pura, testada)
     VendingMachine.ts      máquina de bebidas (interação modal em 8 etapas)
+    Elevator.ts            elevador com colisores que se movem, portas de pavimento e transporte do jogador
+    Telescope.ts           luneta (zoom + nomes dos marcos)
     ObjectPhysics.ts       esferas carregáveis: gravidade, quique, flutuação, correnteza, empurrões
     AudioManager.ts        áudio procedural (Web Audio API), espacial, por categorias
     PerformanceManager.ts  medição de FPS, sobreposição de estatísticas, perfis gráficos
@@ -250,22 +350,42 @@ música ambiente generativa (acordes maj9/add9 com sinos e eco), leito sonoro po
 
 Medições feitas **apenas** em um contêiner Linux sem GPU, com Chromium headless e renderização por software (SwiftShader). Nesse ambiente o jogo roda a ~1 FPS, o que serve para verificar que tudo funciona, mas **não representa** o desempenho em um PC com placa de vídeo. A meta de ~60 FPS em um PC de referência ainda precisa ser confirmada em hardware real.
 
-Carga medida na v0.3 com `aqua.measure()` (um quadro completo, somando sombras, transmissão e espelho):
+Carga medida na v0.4 com `aqua.measure()` (um quadro completo, somando sombras, transmissão e espelho):
 
 | Ponto de vista | Alto: draw calls / triângulos | Econômico: draw calls / triângulos |
 | --- | --- | --- |
-| Início (Átrio) | 563 / 1,49 M | 288 / 0,59 M |
-| Jardins | 330 / 1,06 M | 274 / 0,62 M |
-| Plataforma AQUA Central | 257 / 1,05 M | 202 / 0,64 M |
-| Dentro do trem (vista da estação e do mar) | 700 / 2,05 M | 645 / 1,62 M |
-| Mercado (entrada, olhando o corredor) | 527 / 1,83 M | 472 / 1,42 M |
-| Parque Flutuante (olhando o complexo) | 925 / 2,18 M | 870 / 1,72 M |
-| Banheiro (espelho em tempo real) | 643 / 1,53 M | 502 / 0,78 M (sem espelho) |
+| Início (Átrio) | 622 / 2,08 M | 315 / 0,85 M |
+| Jardins Hidráulicos | 286 / 1,44 M | 221 / 0,84 M |
+| Terraço (olhando o horizonte) | 207 / 1,35 M | 142 / 0,77 M |
+| Plataforma AQUA Central | 284 / 1,41 M | 219 / 0,84 M |
+| Parque Flutuante (olhando o complexo) | 872 / 2,10 M | 731 / 1,45 M |
+| Mercado Aqua | 572 / 2,27 M | 499 / 1,63 M |
+| Passarela da Ala Horizonte | 468 / 1,54 M | 395 / 0,89 M |
+| Salão Maré (lounge) | 432 / 1,59 M | 359 / 0,94 M |
+| Salão Maré (aquários) | 680 / 2,08 M | 603 / 1,44 M |
+| Toaletes spa (espelho em tempo real no Alto) | 1253 / 3,29 M | 907 / 2,25 M |
+| Lobby do Hotel AQUA | 358 / 1,46 M | 285 / 0,82 M |
+| Suíte 101 | 298 / 1,41 M | 225 / 0,77 M |
+| Cobertura do hotel | 258 / 1,34 M | 185 / 0,71 M |
+| Mirante Sul | 160 / 1,14 M | 87 / 0,51 M |
 
-Antes da Fase 2 o início marcava 481 / 1,12 M no Alto; o aumento vem principalmente da vegetação nova (instâncias
-globais por espécie) e das novas áreas quando estão no enquadramento. Os piores casos são as vistas longas que
-enxergam o complexo inteiro (parque, trem). O perfil Econômico desliga sombras, transmissão e o espelho em tempo real
-e reduz grama, flores e partículas. Para medir na sua máquina, ative **Configurações → Mostrar FPS e estatísticas**.
+Otimizações da Fase 3:
+
+- O horizonte inteiro (cinco distritos, anel distante, nuvens, viaduto) custa cerca de 30 draw calls. Ele não
+  projeta sombras, cada distrito é um lote separado (o recorte por enquadramento funciona) e o anel distante é
+  instanciado.
+- Os interiores do salão e do hotel só são desenhados num raio de 55–62 m.
+- A vida dos aquários (peixes, algas, bolhas, superfície) só existe e só é animada de perto.
+- Peças pequenas e animadas das zonas grandes (portas, placas, máquinas) somem além de 45–90 m; o trem, além de
+  ~400 m. A arquitetura agrupada nunca some.
+- A transmissão física do vidro do Átrio só fica ativa perto dele, porque ela renderiza a cena opaca duas vezes.
+- Espelhos em tempo real: um por cômodo, só com o jogador dentro e na qualidade Alta, e renderizando apenas a
+  própria zona.
+- Luminárias sem luzes dinâmicas: um material emissivo por grupo comutável, mais "poças" de luz.
+
+Os casos mais pesados são o banheiro spa no Alto (a passada extra do espelho) e as vistas longas que enxergam o
+complexo inteiro. Lembrete: essas medições vêm de renderização por software. O FPS real precisa ser medido numa
+placa de vídeo: ative **Configurações → Mostrar FPS e estatísticas**.
 
 ## Limitações conhecidas
 
@@ -276,7 +396,17 @@ e reduz grama, flores e partículas. Para medir na sua máquina, ative **Configu
   operacional, que varia entre navegadores. "Cidade das Águas" e as demais paradas do mapa são planejadas.
 - Mercado: produtos são decorativos (não dá para pegar cada item); só as cestas e as bebidas das máquinas são
   carregáveis. As portas das geladeiras não têm colisão quando abertas.
-- Espelhos do banheiro: o reflexo em tempo real mostra só a estação (o resto do mundo é omitido nessa passada).
+- Espelhos: o reflexo em tempo real mostra só a zona onde o espelho está (o resto do mundo é omitido nessa
+  passada) e só é calculado com o jogador dentro do cômodo, na qualidade Alta.
+- Horizonte: distritos, anel distante e nuvens são cenário; não são navegáveis. As nuvens são geometria opaca
+  sombreada (sem volume real nem transparência), e as silhuetas distantes repetem três formas com escala e
+  rotação variadas.
+- Hotel: as suítes 103 e 104 não têm interior (estão sinalizadas como ocupadas). Não há banheiro dentro das
+  suítes; os toaletes ficam no Salão Maré.
+- Luminárias: acender/apagar muda as partes emissivas e as "poças" de luz pintadas nas superfícies; não há luz
+  dinâmica por luminária, então objetos não ganham sombra própria dessas lâmpadas.
+- Deitar: a câmera vai ao travesseiro e o corpo do personagem fica onde estava (não existe um modelo de
+  personagem visível).
 - Sombras do sol cobrem ~68 × 68 m ao redor do jogador.
 - Sem suporte a gamepad nem a dispositivos de toque.
 - No Chrome, após sair do mouse capturado com `Esc`, o navegador pode recusar recapturar por cerca de 1 s; o jogo mostra "Clique na tela para capturar o mouse" e basta clicar novamente.
@@ -297,7 +427,15 @@ e reduz grama, flores e partículas. Para medir na sua máquina, ative **Configu
    mirante; voltar de trem.
 10. Na estação: subir a escada ao mezanino; entrar no banheiro e testar torneira, sabonete, secador, cabines e descarga.
 11. Ir ao Mercado Aqua (sudeste do Átrio): abrir geladeiras, examinar produtos, passar no caixa, carregar uma cesta.
+12. Saindo do Átrio pela Esplanada (sul), atravessar a passarela até a Ala Horizonte. No Salão Maré: sentar diante
+    da coluna-aquário, observar a parede-recife, usar a luneta da janela, achar o recanto dos cavalos-marinhos e
+    testar os toaletes (torneira, sabonete, secador, papel, cabines, descarga).
+13. Pela passarela de vidro ao sul, entrar no Hotel AQUA: fazer check-in no terminal, chamar o elevador, subir ao
+    1º andar, abrir a suíte 101, deitar na cama (olhar a janela), acender/apagar abajures, fechar as cortinas;
+    visitar a 102; tentar a 103 (ocupada); subir à cobertura e usar as lunetas.
+14. Olhar o horizonte de vários pontos (Terraço, plataforma do metrô, Mirante Sul, cobertura): cidade, ilhas,
+    nuvens, monotrilhos, barcos.
 
 Para testes automatizados no navegador, abra o jogo com `?debug` na URL: o objeto `window.aqua` expõe `play()`,
-`teleport()`, `look()`, `simulate()`, `interact()`, `press(tecla)`, `stepWorld(segundos)`, `train()`, `measure()` e
-`state()`.
+`teleport()`, `look()`, `aimAt(x, y, z)`, `probe()`, `simulate()`, `interact()`, `press(tecla)`,
+`stepWorld(segundos)`, `train()`, `measure()` e `state()`.

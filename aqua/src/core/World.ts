@@ -14,7 +14,7 @@ import type { AudioManager } from '../systems/AudioManager';
 import type { Interactable } from '../systems/Interactables';
 import type { PerformanceManager } from '../systems/PerformanceManager';
 import type { QualityAware, QualityProfile, Updatable } from './types';
-import type { WorldContext } from '../world/WorldContext';
+import type { Mover, WorldContext } from '../world/WorldContext';
 import { Atrium } from '../world/Atrium';
 import { Surroundings } from '../world/Surroundings';
 import { HydraulicGardens } from '../world/HydraulicGardens';
@@ -22,6 +22,11 @@ import { AquariumGallery } from '../world/AquariumGallery';
 import { HorizonTerrace } from '../world/HorizonTerrace';
 import { disposeFurnitureCache } from '../world/Furniture';
 import { AquaMetro } from '../world/AquaMetro';
+import { AlaHorizonte } from '../world/AlaHorizonte';
+import { Horizon } from '../world/Horizon';
+import { disposeInteriorCache } from '../world/Interiors';
+import { disposeLampGeometry } from '../world/Lamps';
+import { disposeAquariumAssets } from '../world/Aquarium';
 import { LAYOUT } from '../world/WorldLayout';
 import { MercadoAqua } from '../world/Market';
 import type { SeatController } from '../systems/Seats';
@@ -48,6 +53,10 @@ export class World {
   readonly modals: InteractionModal[] = [];
   /** Camera position, copied by the game every frame (mirrors, proximity doors…). */
   readonly viewer = new THREE.Vector3();
+  readonly viewerDir = new THREE.Vector3(0, 0, -1);
+  readonly movers: Mover[] = [];
+  /** Set by the game: telescope zoom. */
+  onZoom: (fov: number | null) => void = () => undefined;
   /** Set by the game: shows an information card on the HUD. */
   onCard: (html: string, seconds: number) => void = () => undefined;
   readonly root = new THREE.Group();
@@ -70,7 +79,13 @@ export class World {
     surroundings?: Surroundings;
     metro?: AquaMetro;
     market?: MercadoAqua;
+    isle?: AlaHorizonte;
+    horizon?: Horizon;
   } = {};
+  private readonly isleGroup = new THREE.Group();
+  private detailTimer = 0;
+  private readonly detailBounds = new Map<THREE.Object3D, THREE.Sphere>();
+  private readonly horizonGroup = new THREE.Group();
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -82,6 +97,8 @@ export class World {
     this.root.name = 'WorldRoot';
     this.metroGroup.name = 'MetroZone';
     this.marketGroup.name = 'MarketZone';
+    this.isleGroup.name = 'IsleZone';
+    this.horizonGroup.name = 'HorizonZone';
     this.scene.add(this.root);
     this.lighting = new LightingSystem(this.scene);
     const zenith = new THREE.Color(0x1d7fd8);
@@ -93,7 +110,8 @@ export class World {
       sunColor: new THREE.Color(1.0, 0.94, 0.82),
     });
     this.scene.add(this.sky.mesh);
-    this.scene.fog = new THREE.Fog(horizon.clone(), 260, 2100);
+    // long, light haze: the layered horizon (districts, far skyline) fades instead of ending
+    this.scene.fog = new THREE.Fog(horizon.clone(), 420, 4300);
     this.water = new WaterSystem(this.lighting.sunDir, this.lighting.sunColor, horizon, zenith);
     this.scene.add(this.water.group);
     this.veg = new Vegetation(this.collision);
@@ -131,6 +149,9 @@ export class World {
       audio: this.audio,
       lighting: this.lighting,
       viewer: this.viewer,
+      viewerDir: this.viewerDir,
+      setZoom: (fov) => this.onZoom(fov),
+      addMover: (mv) => this.movers.push(mv),
       showCard: (html, seconds = 6) => this.onCard(html, seconds),
       quality: () => this.perf.profile,
       addUpdatable: (u) => this.updatables.push(u),
@@ -151,6 +172,9 @@ export class World {
     await progress(0.1, 'Erguendo o platô e o horizonte…');
     this.zones.surroundings = new Surroundings(ctx);
     this.updatables.push(this.zones.surroundings);
+    await progress(0.16, 'Desenhando a cidade no horizonte…');
+    this.zones.horizon = this.inGroup(this.horizonGroup, () => new Horizon(ctx));
+    this.updatables.push(this.zones.horizon);
     await progress(0.3, 'Polindo o Átrio Azul…');
     this.zones.atrium = new Atrium(ctx);
     this.updatables.push(this.zones.atrium);
@@ -169,6 +193,9 @@ export class World {
     await progress(0.8, 'Abastecendo o Mercado Aqua…');
     this.zones.market = this.inGroup(this.marketGroup, () => new MercadoAqua(ctx));
     this.updatables.push(this.zones.market);
+    await progress(0.82, 'Arrumando as suítes do Hotel AQUA…');
+    this.zones.isle = this.inGroup(this.isleGroup, () => new AlaHorizonte(ctx));
+    this.updatables.push(this.zones.isle);
     await progress(0.84, 'Plantando palmeiras…');
     this.veg.build();
     this.veg.applyQuality(this.perf.profile);
@@ -183,6 +210,37 @@ export class World {
     if (this.zones.atrium) this.probes.push(this.zones.atrium.bakeReflections(this.renderer, this.scene, this.water));
     this.lighting.applyQuality(this.perf.profile);
     await progress(0.96, 'Compilando shaders…');
+  }
+
+  /**
+   * Distance culling for the small dynamic pieces of the large zones (door leaves, signs,
+   * handles, vending machines…): beyond ~120 m they cannot be told apart but still cost a draw
+   * call each. Static batched architecture is never touched; the train stays visible up to
+   * ~400 m because it is a moving landmark.
+   */
+  private cullDetails(): void {
+    const v = this.viewer;
+    // the market's pieces are mostly inside the building: they only matter close by
+    for (const [g, reach] of [
+      [this.metroGroup, 90],
+      [this.marketGroup, 45],
+      [this.isleGroup, 90],
+    ] as Array<[THREE.Group, number]>) {
+      if (!g.visible) continue;
+      for (const c of g.children) {
+        if (c.name.endsWith('Interior')) continue; // managed by the zone itself
+        if ((c as THREE.Mesh).isMesh && !c.matrixAutoUpdate) continue; // static batch
+        let sphere = this.detailBounds.get(c);
+        if (!sphere) {
+          const box = new THREE.Box3().setFromObject(c);
+          sphere = box.isEmpty() ? new THREE.Sphere(c.position.clone(), 1) : box.getBoundingSphere(new THREE.Sphere());
+          this.detailBounds.set(c, sphere);
+        }
+        const train = c.name === 'MetroTrain';
+        const d = train ? v.distanceTo(c.position) : v.distanceTo(sphere.center);
+        c.visible = d < sphere.radius + (train ? 400 : reach);
+      }
+    }
   }
 
   /** Builds a zone into its own group (so it can be hidden as a whole). */
@@ -240,6 +298,12 @@ export class World {
     this.glassNear = Math.hypot(v.x - a.x, v.z - a.z) < 48;
     if (this.glassNear !== this.glassOn && this.perf.profile.transmission) this.applyGlassQuality(this.perf.profile);
     this.marketGroup.visible = !hidden;
+    this.isleGroup.visible = !hidden;
+    this.detailTimer -= dt;
+    if (this.detailTimer <= 0) {
+      this.detailTimer = 0.25;
+      this.cullDetails();
+    }
     for (const u of this.updatables) u.update(dt, time);
   }
 
@@ -266,6 +330,10 @@ export class World {
     this.environment?.dispose();
     for (const p of this.probes) p.dispose();
     disposeFurnitureCache();
+    disposeInteriorCache();
+    disposeLampGeometry();
+    disposeAquariumAssets();
+    this.zones.horizon?.dispose();
     this.lighting.dispose();
     for (const g of this.ballGeometries.values()) g.dispose();
     this.scene.clear();

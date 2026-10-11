@@ -272,6 +272,10 @@ export class VendingMachine implements Interactable, InteractionModal, Updatable
     this.ctx.audio.play('vendMotor', { position: this.position });
   }
 
+  cancel(): void {
+    if (this.state === 'menu') this.close('');
+  }
+
   private close(message: string): void {
     this.state = 'idle';
     this.message = message;

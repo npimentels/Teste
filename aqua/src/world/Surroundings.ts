@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { WorldContext } from './WorldContext';
-import { LAYOUT, registerPavingRing } from './WorldLayout';
+import { LAYOUT, registerPaving, registerPavingRing } from './WorldLayout';
 import { WATER_LOOKS } from '../environment/WaterSystem';
 import { createRng, randRange } from '../core/math';
 import type { Updatable } from '../core/types';
@@ -46,22 +46,37 @@ export class Surroundings implements Updatable {
     // (open along the Aqua Metro station, whose platform screen doors take over the edge)
     const inset = insetPolygon(LAYOUT.outline as Array<[number, number]>, 0.7);
     const S = LAYOUT.metro.station;
+    const BR = LAYOUT.horizonte.bridge;
+    // openings: the metro station (east edge) and the footbridge to Ala Horizonte (south edge)
+    const cuts: Array<{ axis: 'x' | 'z'; at: number; from: number; to: number }> = [
+      { axis: 'x', at: 63.3, from: S.z0 - 0.3, to: S.z1 + 0.3 },
+      { axis: 'z', at: 27.3, from: BR.x0, to: BR.x1 },
+    ];
     const runs: Array<Array<[number, number]>> = [[]];
     for (let i = 0; i < inset.length; i++) {
       const a = inset[i];
       const c = inset[(i + 1) % inset.length];
       runs[runs.length - 1].push(a);
-      const eastEdge = Math.abs(a[0] - c[0]) < 0.01 && a[0] > S.x0;
-      if (!eastEdge) continue;
-      // cut [S.z0 − 0.3, S.z1 + 0.3] out of this segment (it runs along z)
-      const lo = Math.min(a[1], c[1]);
-      const hi = Math.max(a[1], c[1]);
-      const cut0 = Math.max(lo, S.z0 - 0.3);
-      const cut1 = Math.min(hi, S.z1 + 0.3);
-      if (cut1 <= cut0) continue;
-      const desc = c[1] < a[1];
-      runs[runs.length - 1].push([a[0], desc ? cut1 : cut0]);
-      runs.push([[a[0], desc ? cut0 : cut1]]);
+      for (const cut of cuts) {
+        // segment parallel to the cut axis, on the cut line?
+        const k = cut.axis === 'x' ? 0 : 1; // coordinate that is constant along the segment
+        const along = 1 - k;
+        if (Math.abs(a[k] - c[k]) > 0.01 || Math.abs(a[k] - cut.at) > 0.5) continue;
+        const lo = Math.min(a[along], c[along]);
+        const hi = Math.max(a[along], c[along]);
+        const c0 = Math.max(lo, cut.from);
+        const c1 = Math.min(hi, cut.to);
+        if (c1 <= c0) continue;
+        const desc = c[along] < a[along];
+        const p0: [number, number] = [0, 0];
+        const p1: [number, number] = [0, 0];
+        p0[k] = a[k];
+        p1[k] = a[k];
+        p0[along] = desc ? c1 : c0;
+        p1[along] = desc ? c0 : c1;
+        runs[runs.length - 1].push(p0);
+        runs.push([p1]);
+      }
     }
     // close the loop: the last run continues into the first
     if (runs.length > 1) runs[0] = [...runs.pop()!, ...runs[0]];
@@ -71,6 +86,9 @@ export class Surroundings implements Updatable {
     // ---- South plaza in front of the atrium -------------------------------------------
     b.ring(m.paving, 0, 0.02, 0, A.rIn + A.wallT, A.rIn + 5.5, 0.1, { a0: 0.35, a1: Math.PI - 0.35 });
     registerPavingRing(0, 0, A.rIn + A.wallT, A.rIn + 5.5);
+    // approach to the footbridge (Ala Horizonte)
+    b.box(m.paving, 0, -0.08, 24.6, 5.2, 0.1, 6.0, { cast: false });
+    registerPaving(-2.6, 21.5, 2.6, 27.6);
     // Sculptural glossy spheres on the lawn
     for (const [x, z, r, mat] of [
       [-14, 22, 1.2, m.glossyGreen],
@@ -90,6 +108,7 @@ export class Surroundings implements Updatable {
       const z = Math.sin(a) * r;
       if (x > 14 && Math.abs(z) < 11) continue;
       if (inMarket(x, z, 2.5)) continue;
+      if (Math.abs(x) < 5 && z > 0) continue; // footbridge approach
       ctx.veg.palm(x, 0, z, randRange(rng, 0.9, 1.15));
       ctx.veg.bush(x + 1.4, 0, z + 0.6, 0.8);
       ctx.veg.fern(x - 1.1, 0, z - 0.7, 1);
@@ -101,6 +120,7 @@ export class Surroundings implements Updatable {
       if (x > 15 && Math.abs(z) < 10.5 && x < 58) return false;
       if (Math.hypot(x - LAYOUT.gallery.room.x, z) < 8.5) return false;
       if (inMarket(x, z, 1.2)) return false;
+      if (Math.abs(x) < 3.4 && z > 18) return false; // footbridge approach
       if (x > S.x0 - 1.5 && z > S.z0 - 1 && z < S.z1 + 5.5) return false; // station + entrance plaza
       return collision.terrain.insideOutline(x, z) && Math.abs(insetDistance(x, z)) > 1.2;
     };
@@ -110,7 +130,7 @@ export class Surroundings implements Updatable {
     // ---- Sea & islands -----------------------------------------------------------------
     ctx.water.add({
       name: 'ocean',
-      shape: { kind: 'circle', x: 13, z: -30, r: 2600 },
+      shape: { kind: 'circle', x: 13, z: -30, r: 6000 },
       surfaceY: SEA_Y,
       look: WATER_LOOKS.ocean,
       segments: 64,

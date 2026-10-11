@@ -46,6 +46,14 @@ export const DEFAULT_TUNING: PlayerTuning = {
 
 const MAX_PITCH = THREE.MathUtils.degToRad(88);
 
+/** Look limits and initial pitch for a seat (sitting upright, lying on a bed…). */
+export interface SeatPose {
+  pitch?: number;
+  yawRange?: number;
+  pitchMin?: number;
+  pitchMax?: number;
+}
+
 /**
  * First-person kinematic controller: a vertical cylinder (capsule-like) body with gravity,
  * step-up, ground snapping, wading and smoothed camera.
@@ -76,8 +84,10 @@ export class PlayerController {
 
   /** Movement frozen (modal interfaces such as vending machines); looking still works. */
   locked = false;
-  /** Seated state: camera goes to `eye`, yaw is limited around `yaw`. */
-  private seat: { eye: THREE.Vector3; yaw: number; turning: boolean } | null = null;
+  /** Seated / lying state: camera goes to `eye`, yaw and pitch are limited around the pose. */
+  private seat: { eye: THREE.Vector3; yaw: number; turning: boolean; pitch: number | null; yawRange: number; pitchMin: number; pitchMax: number } | null = null;
+  /** Telescope / binoculars: target field of view while zoomed (null = normal). */
+  zoomFov: number | null = null;
   /** 0 = standing camera, 1 = seated camera (smoothed in both directions). */
   private seatBlend = 0;
   private readonly lastSeatEye = new THREE.Vector3();
@@ -125,9 +135,20 @@ export class PlayerController {
     return this.seat !== null || this.scripted !== null;
   }
 
-  /** Sits down: the body stays where it is (a valid spot), only the camera moves to the seat. */
-  sit(eye: THREE.Vector3, yaw: number): void {
-    this.seat = { eye: eye.clone(), yaw, turning: true };
+  /**
+   * Sits (or lies) down: the body stays where it is (a valid spot), only the camera moves to
+   * the seat. `pose` optionally sets an initial pitch and the comfortable look limits.
+   */
+  sit(eye: THREE.Vector3, yaw: number, pose: SeatPose = {}): void {
+    this.seat = {
+      eye: eye.clone(),
+      yaw,
+      turning: true,
+      pitch: pose.pitch ?? null,
+      yawRange: pose.yawRange ?? 1.9,
+      pitchMin: pose.pitchMin ?? -MAX_PITCH,
+      pitchMax: pose.pitchMax ?? MAX_PITCH,
+    };
     this.lastSeatEye.copy(eye);
     this.velocity.set(0, 0, 0);
   }
@@ -174,7 +195,8 @@ export class PlayerController {
 
     // --- Look -----------------------------------------------------------------------------
     input.consumeMouse(this.mouse);
-    const k = 0.0021 * this.sensitivity;
+    // finer aim while zoomed through a telescope
+    const k = 0.0021 * this.sensitivity * (this.camera.fov / this.baseFov);
     this.yaw -= this.mouse.x * k;
     this.pitch -= this.mouse.y * k * (this.invertY ? -1 : 1);
     this.pitch = clamp(this.pitch, -MAX_PITCH, MAX_PITCH);
@@ -184,10 +206,13 @@ export class PlayerController {
       const s = this.seat;
       if (s.turning) {
         this.yaw += angleDelta(this.yaw, s.yaw) * dampFactor(5, dt);
-        if (Math.abs(angleDelta(this.yaw, s.yaw)) < 0.03) s.turning = false;
+        if (s.pitch !== null) this.pitch += (s.pitch - this.pitch) * dampFactor(5, dt);
+        const pitchDone = s.pitch === null || Math.abs(this.pitch - s.pitch) < 0.03;
+        if (Math.abs(angleDelta(this.yaw, s.yaw)) < 0.03 && pitchDone) s.turning = false;
       } else {
-        this.yaw = s.yaw + clamp(angleDelta(s.yaw, this.yaw), -1.9, 1.9);
+        this.yaw = s.yaw + clamp(angleDelta(s.yaw, this.yaw), -s.yawRange, s.yawRange);
       }
+      this.pitch = clamp(this.pitch, s.pitchMin, s.pitchMax);
       this.velocity.set(0, 0, 0);
       this.seatBlend = damp(this.seatBlend, 1, 5, dt);
       this.bobAmount = 0;
@@ -342,7 +367,10 @@ export class PlayerController {
     );
     if (this.seatBlend > 0) this.camera.position.lerp(this.lastSeatEye, smoothstep(0, 1, this.seatBlend));
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
-    const fov = this.baseFov + this.fovKick * 3 * Math.min(1, this.headBob * 2);
+    const target = this.zoomFov ?? this.baseFov + this.fovKick * 3 * Math.min(1, this.headBob * 2);
+    // zooming in / out eases; the small running kick follows directly
+    const ease = _dt > 0 && (this.zoomFov !== null || Math.abs(this.camera.fov - target) > 2);
+    const fov = ease ? this.camera.fov + (target - this.camera.fov) * dampFactor(7, _dt) : target;
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();

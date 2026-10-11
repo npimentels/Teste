@@ -47,7 +47,7 @@ export interface AmbienceProfile {
   exposure: number;
 }
 
-export const AMBIENCE: Record<'hall' | 'aquarium' | 'garden' | 'terrace' | 'open', AmbienceProfile> = {
+export const AMBIENCE: Record<'hall' | 'aquarium' | 'garden' | 'terrace' | 'open' | 'suite', AmbienceProfile> = {
   // Covered halls: sky fill comes through glass, keep it low so cobalt and shadows read.
   hall: { hemi: 0.42, env: 0.45, sun: 3.4, exposure: 0.98 },
   // Aquarium spaces: dim, cool; accent lights and caustics do the work.
@@ -57,4 +57,7 @@ export const AMBIENCE: Record<'hall' | 'aquarium' | 'garden' | 'terrace' | 'open
   // Terrace: the "reward" view — a touch more exposure for the horizon.
   terrace: { hemi: 0.6, env: 0.6, sun: 3.5, exposure: 1.0 },
   open: { hemi: 0.58, env: 0.55, sun: 3.4, exposure: 0.98 },
+  // Lounge and hotel interiors: the references are extremely luminous — generous sky fill
+  // (as if the white rooms bounced the daylight around) and a touch more exposure.
+  suite: { hemi: 0.78, env: 0.75, sun: 3.2, exposure: 1.08 },
 };

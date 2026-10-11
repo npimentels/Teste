@@ -55,6 +55,28 @@ suspensa), `bench` (banco reto que devolve os pontos de assento para o sistema `
 Assentos: qualquer móvel registra pontos com `ctx.addSeat({x, y, z, yaw, parent?})`; não existe código por banco.
 Todos têm colisão coerente (encostos e mesas não são "escaláveis"), são fundidos por material e reutilizam geometria.
 
+### Kits da Fase 3
+
+- **Interiores** (`Interiors.ts`):
+  - Peças: `tubChair`, `sofa`, `bed`, `roundBed`, `nightstand`, `wardrobe`, `desk`, `bookshelf`, `roundTable`,
+    `pouf`, `rugRect`, `tableDecor`.
+  - `artPanel` gera "pinturas" Frutiger por semente: céu, colinas, bolhas e água.
+  - Tecidos próprios (`fabric('linen' | 'pearl' | 'mist' | 'lagoon' | 'coral')`) com *sheen*, para não parecerem
+    plástico.
+- **Luminárias** (`Lamps.ts`):
+  - Peças: `floorLamp`, `arcLamp`, `wallSconce`, `tableLamp`, `lightLine` (sob bancadas, sofás, degraus,
+    corredores), `ringPendant`, `downlight`, além de `teardropLamp`/`bubbleLamp` (`Furniture.ts`).
+  - `LampGroup`: um material emissivo por grupo comutável (todas as lâmpadas do grupo viram uma única malha) e
+    "poças" de luz aditivas pintadas nas superfícies. Nenhuma luminária cria luz dinâmica.
+- **Aquários** (`Aquarium.ts`): caixa ou cilindro, com fundo pintado nas faces encostadas em paredes, gabinete,
+  coroa, areia, rochas, corais, algas, peixes, bolhas e superfície cáustica. Peixes menores em aquários pequenos,
+  sempre dentro do vidro. A parte viva só existe de perto.
+- **Banheiro** (`BathroomKit.ts`): cuba de vidro com torneira, saboneteira, secador, papel-toalha, vaso com
+  descarga, fileira de cabines com portas, ventilação e parede de espelhos.
+- **Portas e cortinas** (`Doors.ts`): `HingedDoor`, `SlidingDoor`, `Curtains` e `examine`.
+- **Iluminação de interiores**: perfil `suite` (salão e hotel), com mais luz de céu e exposição — as referências
+  são muito luminosas.
+
 ## 5. Sinalização e tipografia
 
 - Placa padrão: pílula cobalto brilhante, texto branco em fonte humanista (Segoe UI / Frutiger / Myriad), bolha

@@ -110,7 +110,7 @@ export function rug(b: WorldBuilder, x: number, z: number, r: number): void {
 }
 
 /** Glossy lathe planter with a cobalt band; returns the soil height for planting. */
-export function planterBowl(b: WorldBuilder, x: number, z: number, r: number, body: THREE.Material, band: THREE.Material): number {
+export function planterBowl(b: WorldBuilder, x: number, z: number, r: number, body: THREE.Material, band: THREE.Material, y0 = 0): number {
   const h = r * 0.95;
   const key = `bowl:${r.toFixed(2)}`;
   const geo = cached(key, () =>
@@ -131,11 +131,11 @@ export function planterBowl(b: WorldBuilder, x: number, z: number, r: number, bo
   const bandGeo = cached(`${key}:band`, () =>
     new THREE.LatheGeometry([new THREE.Vector2(r * 0.79, h * 0.3), new THREE.Vector2(r * 0.85, h * 0.36), new THREE.Vector2(r * 0.92, h * 0.55), new THREE.Vector2(r * 0.87, h * 0.6)], 36),
   );
-  b.place(geo, body, x, 0, z);
-  b.place(bandGeo, band, x, 0, z);
-  b.cylinder(b.mats.soil, x, h * 0.88, z, r * 0.88, r * 0.88, 0.04, { segments: 24, cast: false });
-  b.collision.addCylinder({ x, z, r, minY: 0, maxY: h, surface: 'stone' });
-  return h * 0.9;
+  b.place(geo, body, x, y0, z);
+  b.place(bandGeo, band, x, y0, z);
+  b.cylinder(b.mats.soil, x, y0 + h * 0.88, z, r * 0.88, r * 0.88, 0.04, { segments: 24, cast: false });
+  b.collision.addCylinder({ x, z, r, minY: y0, maxY: y0 + h, surface: 'stone' });
+  return y0 + h * 0.9;
 }
 
 /** Hanging bubble lamp: frosted globe with a glowing core, chrome cap and cable. */

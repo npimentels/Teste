@@ -16,6 +16,8 @@ export interface InteractionModal {
   prompt(): string | null;
   hint?(): string | null;
   update(input: Input): void;
+  /** Leaves the modal state immediately (back to menu, respawn…). */
+  cancel?(): void;
 }
 
 export interface InteractionFeedback {
@@ -54,6 +56,10 @@ export class InteractionSystem {
 
   addModal(modal: InteractionModal): void {
     this.modals.push(modal);
+  }
+
+  cancelModals(): void {
+    for (const m of this.modals) if (m.active) m.cancel?.();
   }
 
   get activeModal(): InteractionModal | null {

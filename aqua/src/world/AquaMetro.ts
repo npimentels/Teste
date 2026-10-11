@@ -177,7 +177,6 @@ export class AquaMetro implements Updatable {
     this.buildCentral(b);
     this.buildViaduct(b);
     this.buildPark(b);
-    this.buildSkyline(b);
     for (const stop of this.stops) {
       for (const [i, z] of this.psd.get(stop.id)!.doorZ.entries()) ctx.addInteractable(new TrainDoorway(`metro-door-${stop.id}-${i}`, this, stop, z));
     }
@@ -756,6 +755,9 @@ export class AquaMetro implements Updatable {
     this.boards.push({ board, stop: 'park' });
     this.hangingBoardAt(b, 62.6, -422, board.texture, roofY);
     this.mapTotem(b, 58.8, -400.5, Math.PI, 'park');
+    // end of the line: the viaduct visibly continues, but the extension is not open
+    const endTex = metroSign(ctx.assets, 'park-end', { arrow: '↓', title: 'Fim da linha', titleEn: 'End of line · Linha 2', footer: 'Extensão p/ Cidade das Águas: em obras', icon: 'train' });
+    this.hangingSignAt(b, 62.4, I.z0 + 3.2, 0, endTex, 3.0, roofY);
     const exitTex = metroSign(ctx.assets, 'park-exit', { arrow: '←', title: 'Jardim da Ilha', titleEn: 'Island Garden · Mirante', icon: 'exit' });
     this.hangingSignAt(b, 59.4, -426, -Math.PI / 2, exitTex, 3.0, roofY);
     for (const z of [-440, -404]) {
@@ -844,47 +846,6 @@ export class AquaMetro implements Updatable {
     b.cylinder(b.mats.chrome, x, y + h, z, 0.015, 0.015, roofY - y - h, { segments: 6, cast: false });
   }
 
-  // ---------------------------------------------------------------------------------------
-  // Cidade das Águas — the glass skyline on the horizon (reference background)
-  // ---------------------------------------------------------------------------------------
-
-  private buildSkyline(b: WorldBuilder): void {
-    const glass = new THREE.MeshPhysicalMaterial({ name: 'towerGlass', color: 0x7fc6ee, metalness: 0.55, roughness: 0.08, clearcoat: 1, envMapIntensity: 1.5 });
-    const glassDeep = new THREE.MeshPhysicalMaterial({ name: 'towerGlassDeep', color: 0x3d86d6, metalness: 0.6, roughness: 0.1, clearcoat: 1, envMapIntensity: 1.4 });
-    const rng = createRng(909);
-    const base = new THREE.Vector3(360, -32, -760);
-    for (let i = 0; i < 13; i++) {
-      const x = base.x + randRange(rng, -170, 170);
-      const z = base.z + randRange(rng, -130, 110);
-      const h = randRange(rng, 90, 280);
-      const r = randRange(rng, 10, 22);
-      const pts: THREE.Vector2[] = [new THREE.Vector2(0.001, 0)];
-      const bulge = randRange(rng, 0.1, 0.35);
-      for (let k = 0; k <= 12; k++) {
-        const t = k / 12;
-        const rr = r * (1 + Math.sin(t * Math.PI) * bulge) * (1 - t * 0.55);
-        pts.push(new THREE.Vector2(rr, t * h));
-      }
-      pts.push(new THREE.Vector2(r * 0.15, h + r * 1.4), new THREE.Vector2(0.001, h + r * 1.6));
-      const g = new THREE.LatheGeometry(pts, 20);
-      b.place(g, rng() < 0.5 ? glass : glassDeep, x, base.y, z, { cast: false, receive: false });
-      g.dispose();
-      const rings = 2 + Math.floor(rng() * 3);
-      for (let k = 0; k < rings; k++) {
-        const ry = base.y + h * (0.25 + k * 0.2);
-        const ring = new THREE.CylinderGeometry(r * 1.45, r * 1.45, 2.5, 24);
-        b.place(ring, b.mats.whiteCeramic, x, ry, z, { cast: false, receive: false });
-        ring.dispose();
-        const green = new THREE.CylinderGeometry(r * 1.38, r * 1.38, 0.8, 24);
-        b.place(green, b.mats.glossyGreen, x, ry + 1.5, z, { cast: false, receive: false });
-        green.dispose();
-      }
-    }
-    // island base for the city
-    const islandGeo = new THREE.CylinderGeometry(260, 300, 6, 40).translate(0, -3, 0);
-    b.place(islandGeo, b.mats.whiteCeramic, base.x, base.y + 1, base.z, { cast: false, receive: false });
-    islandGeo.dispose();
-  }
 }
 
 function roundedRect(x0: number, z0: number, x1: number, z1: number, r: number): Array<[number, number]> {

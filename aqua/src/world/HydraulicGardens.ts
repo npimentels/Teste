@@ -8,6 +8,8 @@ import type { SoundHandle } from '../systems/AudioManager';
 import type { Collider } from '../physics/Collision';
 import type { Updatable } from '../core/types';
 import { damp } from '../core/math';
+import { bench } from './Furniture';
+import { yawFacing } from '../systems/Seats';
 
 const TAU = Math.PI * 2;
 
@@ -417,6 +419,13 @@ export class HydraulicGardens implements Updatable {
     b.sign('Terraço do Horizonte', '↑', 3.9, -43.2, 0);
     b.sign('Átrio Azul', '↑', -3.9, -36.0, Math.PI);
 
+    // ---- Benches (Phase 3: places to stay): facing the square pools and the canal -------------
+    for (const sx of [-1, 1]) {
+      for (const sp of bench(b, sx * 13, -32.4, 0, 1, 2.6, sx < 0 ? m.fabricCyan : m.fabricLime)) ctx.addSeat({ id: `gardens-pool-bench-${sx}-${sp.x.toFixed(2)}`, x: sp.x, y: sp.y, z: sp.z, yaw: yawFacing(0, 1) });
+    }
+    for (const x of [-8, 9]) {
+      for (const sp of bench(b, x, -35.0, 0, -1, 2.6, m.fabricCobalt)) ctx.addSeat({ id: `gardens-canal-bench-${x}-${sp.x.toFixed(2)}`, x: sp.x, y: sp.y, z: sp.z, yaw: yawFacing(0, -1) });
+    }
     b.flush('gardens');
   }
 

@@ -13,6 +13,13 @@ import type { QualityAware, Updatable } from '../core/types';
 import type { Seat, SeatSpec } from '../systems/Seats';
 import type { InteractionModal } from '../player/InteractionSystem';
 
+/** Something that moves the player (elevator cabin): stepped before the player update. */
+export interface Mover {
+  step(dt: number, carry: boolean): void;
+  bindPlayer(player: import('../player/PlayerController').PlayerController): void;
+  readonly locksPlayer: boolean;
+}
+
 /** Everything a zone builder needs to add geometry, collisions, water, plants and systems. */
 export interface WorldContext {
   scene: THREE.Scene;
@@ -25,8 +32,13 @@ export interface WorldContext {
   physics: ObjectPhysics;
   audio: AudioManager;
   lighting: LightingSystem;
-  /** Current camera position (updated by the game every frame). */
+  /** Current camera position and look direction (updated by the game every frame). */
   viewer: THREE.Vector3;
+  viewerDir: THREE.Vector3;
+  /** Telescope zoom: target field of view, or null to restore. */
+  setZoom(fov: number | null): void;
+  /** Moving platforms (elevators…) stepped before the player each frame. */
+  addMover(m: Mover): void;
   /** Current quality profile. */
   quality(): import('../core/types').QualityProfile;
   /** Shows an information card on the HUD (product details, notices). */

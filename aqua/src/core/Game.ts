@@ -31,6 +31,9 @@ const ZONE_AMBIENCE: Record<ZoneId, keyof typeof AMBIENCE> = {
   metro: 'hall',
   park: 'garden',
   market: 'hall',
+  lounge: 'suite',
+  hotel: 'suite',
+  isle: 'garden',
 };
 
 const FOOTSTEP_SFX: Record<FootSurface, SfxName> = {
@@ -84,7 +87,7 @@ export class Game {
     this.renderer.domElement.tabIndex = 0;
     container.prepend(this.renderer.domElement);
 
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 4000);
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 6500);
     this.perf = new PerformanceManager(this.renderer, container);
     this.world = new World(this.renderer, this.audio, this.perf);
     this.hud = new HUD(container);
@@ -121,6 +124,7 @@ export class Game {
     this.seats.onSit = (seat) => this.audio.play('sit', { position: seat.position, volume: 0.7 });
     this.seats.onStand = (seat) => this.audio.play('stand', { position: seat.position, volume: 0.6 });
     this.world.onCard = (html, seconds) => this.hud.showCard(html, seconds);
+    this.world.onZoom = (fov) => (this.player.zoomFov = fov);
 
     const sounds: UiSounds = {
       click: () => this.audio.play('click'),
@@ -185,6 +189,7 @@ export class Game {
     for (const m of this.world.modals) this.interaction.addModal(m);
     this.interaction.blocked = () => this.player.busy;
     this.world.zones.metro?.bindPlayer(this.player, this.seats);
+    for (const mv of this.world.movers) mv.bindPlayer(this.player);
 
     this.settings.subscribe((s, changed) => this.applySettings(s, changed));
     this.applySettings(this.settings.get());
@@ -228,7 +233,8 @@ export class Game {
   private startExploration(): void {
     void this.audio.init().then(() => this.applySettings(this.settings.get()));
     this.world.reset();
-    if (this.seats.current) this.seats.stand();
+    this.interaction.cancelModals();
+    this.player.zoomFov = null;
     this.player.respawn();
     this.zone = null;
     this.menu.hide();
@@ -275,6 +281,8 @@ export class Game {
     this.hud.setVisible(false);
     this.hud.clearHints();
     if (this.world.physics.carried) this.world.physics.drop(false);
+    this.interaction.cancelModals();
+    this.player.zoomFov = null;
     this.state = 'menu';
     this.audio.setPaused(false);
     this.audio.setZone('atrium');
@@ -400,10 +408,13 @@ export class Game {
 
     const active = this.state === 'playing' && (this.locked || this.debugNoLock);
     // the metro runs on its own clock (also behind the menu); it is frozen while paused
-    if (this.state !== 'paused') this.world.zones.metro?.step(dt, active);
+    if (this.state !== 'paused') {
+      this.world.zones.metro?.step(dt, active);
+      for (const mv of this.world.movers) mv.step(dt, active);
+    }
     if (active) {
       const modal = this.interaction.activeModal;
-      this.player.locked = !!modal && modal.locksMovement === true;
+      this.player.locked = (!!modal && modal.locksMovement === true) || this.world.movers.some((mv) => mv.locksPlayer);
       // seated in a moving train: keep the eye attached to the seat
       const seat = this.seats.current;
       if (seat) this.player.updateSeatEye(seat.eye(this.seatEye));
@@ -425,6 +436,7 @@ export class Game {
     }
 
     this.world.viewer.copy(this.camera.position);
+    this.camera.getWorldDirection(this.world.viewerDir);
     this.world.update(dt, this.time);
     const amb = this.state === 'menu' || this.zone === null ? 'hall' : ZONE_AMBIENCE[this.zone];
     this.world.lighting.setAmbience(AMBIENCE[amb]);
@@ -487,6 +499,31 @@ export class Game {
         calls: this.renderer.info.render.calls,
         triangles: this.renderer.info.render.triangles,
       }),
+      /** Points the camera at a world point (yaw/pitch), for scripted interaction tests. */
+      aimAt: (x: number, y: number, z: number) => {
+        this.player.syncCamera(0);
+        const c = this.camera.position;
+        const dx = x - c.x;
+        const dy = y - c.y;
+        const dz = z - c.z;
+        this.player.yaw = Math.atan2(-dx, -dz);
+        this.player.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+        this.player.syncCamera(0);
+        return [+this.player.yaw.toFixed(3), +this.player.pitch.toFixed(3)];
+      },
+      /** What the crosshair ray hits: nearest interactables and the first blocking collider. */
+      probe: () => {
+        const o = this.camera.position.clone();
+        const d = new THREE.Vector3();
+        this.camera.getWorldDirection(d);
+        const hits = this.world.interactables
+          .map((i) => ({ id: i.id, t: i.hitTest(o, d), reach: i.reach }))
+          .filter((h) => h.t >= 0 && h.t < 6)
+          .sort((a, b) => a.t - b.t)
+          .slice(0, 5)
+          .map((h) => ({ ...h, t: +h.t.toFixed(2) }));
+        return { hits, wall: +this.world.collision.raycast(o, d, 6).toFixed(2) };
+      },
       /** Renders one frame now and returns its draw calls / triangles. */
       measure: () => {
         this.world.viewer.copy(this.camera.position);
@@ -512,6 +549,7 @@ export class Game {
         const idle = { isDown: () => false, wasPressed: () => false, consumeMouse: (o: { x: number; y: number }) => ((o.x = 0), (o.y = 0)) };
         for (let i = 0; i < n; i++) {
           this.world.zones.metro?.step(1 / 30, true);
+          for (const mv of this.world.movers) mv.step(1 / 30, true);
           const seat = this.seats.current;
           if (seat) this.player.updateSeatEye(seat.eye(this.seatEye));
           this.player.update(1 / 30, idle);
