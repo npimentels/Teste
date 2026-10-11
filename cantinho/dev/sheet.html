@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cantinho — folha de sprites</title>
+<style>
+  body { background: #3a3346; color: #f1e4c6; font: 12px monospace; margin: 12px; }
+  canvas { image-rendering: pixelated; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .cell { display: flex; flex-direction: column; align-items: center; background: #4a4258; padding: 4px; }
+</style>
+</head>
+<body>
+<div id="err"></div>
+<div class="row" id="furni"></div>
+<h3>personagens</h3>
+<div class="row" id="chars"></div>
+<script type="module">
+import { FURNI } from '../src/furniture.js';
+import { furniSprite } from '../src/sprites.js';
+import { avatarSprite, petSprite, validateArt, DEFAULT_LOOK, LOOK_OPTIONS } from '../src/characters.js';
+const S = 3;
+const bad = validateArt();
+if (bad.length) document.getElementById('err').textContent = 'MAPAS: ' + bad.join(', ');
+const show = (parent, canvas, label) => {
+  const d = document.createElement('div'); d.className = 'cell';
+  const c = document.createElement('canvas'); c.width = canvas.width * S; c.height = canvas.height * S;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(canvas, 0, 0, c.width, c.height);
+  d.append(c, label); parent.append(d);
+};
+const params = new URLSearchParams(location.search);
+const only = params.get('only');
+for (const def of Object.values(FURNI)) {
+  if (only && !only.split(',').includes(def.id)) continue;
+  const n = def.states ? def.states.length : 1;
+  const rots = def.wall ? 2 : (def.rots || 4);
+  for (let st = 0; st < n; st++) for (let rot = 0; rot < rots; rot++) {
+    if (rot > 0 && params.has('norot')) continue;
+    try { show(document.getElementById('furni'), furniSprite(def, { rot, state: st, env: params.get('env') || 'day' }).canvas, def.id + (st ? ' s' + st : '') + (rot ? ' r1' : '')); }
+    catch (e) { document.getElementById('err').textContent += ' ' + def.id + ': ' + e.message; }
+  }
+}
+const ch = document.getElementById('chars');
+const looks = [DEFAULT_LOOK,
+  { ...DEFAULT_LOOK, hairStyle: 'longo', hair: '#e2683c', shirt: '#4b6aa3', hat: 'bruxa' },
+  { ...DEFAULT_LOOK, hairStyle: 'cacheado', hair: '#2f2f4a', skin: '#9a6142', shirt: '#7fa86b', hat: 'gorro', hatColor: '#d94f4f' },
+  { ...DEFAULT_LOOK, hairStyle: 'curto', hair: '#d9a24c', skin: '#f6d4b8', shirt: '#8f7bc2', hat: 'flor' }];
+for (const look of looks) for (const pose of ['stand', 'walk0', 'walk1', 'walk2', 'sit', 'wave0', 'dance2', 'lay'])
+  for (const view of ['front', 'back']) { if (view === 'back' && !['stand', 'walk0'].includes(pose)) continue; show(ch, avatarSprite(look, pose, view), pose + ' ' + view[0]); }
+for (const k of ['cachorro', 'gato']) for (let c = 0; c < 4; c++) for (const p of ['stand', 'walk', 'sit', 'sleep']) show(ch, petSprite(k, c, p), k[0] + c + p);
+</script>
+</body>
+</html>
