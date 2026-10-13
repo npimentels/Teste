@@ -11,6 +11,15 @@ python3 -m http.server 8080
 # abra http://localhost:8080
 ```
 
+## Jogar no celular (link público)
+
+O repositório é público, então dá para publicar de graça pelo GitHub Pages:
+
+1. No GitHub, abra **Settings → Pages**.
+2. Em *Build and deployment*, escolha **Deploy from a branch**, a branch `ccr-4e05726e-rd4hig` e a pasta **/ (root)**. Salve.
+3. Em 1–2 minutos o jogo fica em **https://npimentels.github.io/Teste/nox-city/**.
+4. No celular, abra o link e use **Adicionar à tela de início** (Safari: botão Compartilhar; Chrome: menu ⋮). Ele abre em tela cheia, como um app.
+
 ## Controles
 
 | PC | Celular | Ação |
