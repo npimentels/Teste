@@ -310,7 +310,7 @@
     // interior
     floorPlane(16, 54, -95, -56.3, 0.16, 1);
     P(35, 11.93, -75.6, 38, 0.1, 39, [0.04, 0.04, 0.05]);
-    for (let z = -92; z <= -60; z += 4) N(35, 11.85, z, 34, 0.05, 0.18, [0.9, 0.95, 1]);
+    for (let z = -92; z <= -60; z += 4) N(35, 11.85, z, 34, 0.05, 0.18, [0.5, 0.53, 0.58]);
     // reception desk (arc)
     for (let i = -2; i <= 2; i++) {
       const a = i * 0.32, cx = 35 + Math.sin(a) * 4.2, cz = -74 + Math.cos(a) * 4.2 - 4.2;
@@ -374,6 +374,7 @@
     NC.addInteract({ x: 52.4, y: 1.2, z: -70, r: 1.8, label: 'Chamar elevador', kind: 'elev', use: () => NC.UI.elevator('Hyperion Tower', floors, 0) });
     NC.addInteract({ x: 52.4, y: 1.2, z: -82, r: 1.8, label: 'Chamar elevador', kind: 'elev', use: () => NC.UI.elevator('Hyperion Tower', floors, 0) });
     for (const z of [-62, -76, -90]) NC.addLight(30, 9, z, '#f0f4ff', 1.3, 16, 1);
+    NC.addLight(18.5, 6, -76, '#ffcf9a', 1.2, 14, 0.8); NC.addLight(51.5, 6, -76, '#ffcf9a', 1.2, 14, 0.8);
     addZone({ x0: 16, x1: 54, z0: -95, z1: -56.3, y0: -1, y1: 12, name: 'Hyperion Tower · Lobby', indoor: true });
     // forecourt
     for (const x of [22, 48]) { PG(G.cyl, x, L.CURB + 0.45, -53.6, 2.4, 0.9, 2.4, [0.1, 0.1, 0.11]); PG(G.ico, x, L.CURB + 1.6, -53.6, 2, 1.6, 2, [0.04, 0.14, 0.07]); N(x, L.CURB + 0.92, -53.6, 2.45, 0.04, 2.45, nc('#5ef2ff').map((c) => c * 0.5)); NC.colliderBox(x, 0.5, -53.6, 2.4, 1, 2.4, 'plant'); }
@@ -639,11 +640,11 @@
     // gondolas
     const prodCols = ['#ff3b4e', '#ffb24a', '#f3e600', '#7dff4a', '#5ef2ff', '#ff2bd6', '#ffffff', '#9d6bff', '#ff6a3d'];
     for (const gx of [-29.5, -25, -20.5]) {
-      P(gx, 0.8, 59.5, 1.0, 1.3, 7, [0.75, 0.77, 0.8]);
+      P(gx, 0.8, 59.5, 1.0, 1.3, 7, [0.45, 0.46, 0.5]);
       NC.addCollider(gx - 0.5, 0, 56, gx + 0.5, 1.6, 63, 'shelf');
       for (const side of [-1, 1]) for (let lvl = 0; lvl < 3; lvl++) {
         const y = 0.45 + lvl * 0.45;
-        P(gx + side * 0.6, y - 0.04, 59.5, 0.32, 0.03, 7, [0.85, 0.86, 0.88]);
+        P(gx + side * 0.6, y - 0.04, 59.5, 0.32, 0.03, 7, [0.5, 0.5, 0.52]);
         for (let z = 56.3; z < 62.8; z += rand(0.22, 0.34)) {
           const h = rand(0.14, 0.32);
           W.prop(gx + side * 0.6, y + h / 2, z, rand(0.12, 0.22), h, rand(0.12, 0.2), nc(pick(prodCols)).map((c) => c * rand(0.5, 1)));
@@ -659,7 +660,7 @@
     ]) });
     // fridges
     P(-27.75, 1.3, 65.35, 11.5, 2.4, 1.0, [0.2, 0.2, 0.22]);
-    N(-27.75, 1.3, 64.86, 11.2, 2.2, 0.02, [0.55, 0.75, 1.0].map((c) => c * 0.9));
+    N(-27.75, 1.3, 64.86, 11.2, 2.2, 0.02, [0.55, 0.75, 1.0].map((c) => c * 0.42));
     for (let r = 0; r < 4; r++) for (let x = -33.2; x < -22.3; x += 0.21) W.prop(x, 0.45 + r * 0.52, 64.75, 0.14, rand(0.22, 0.36), 0.14, nc(pick(prodCols)).map((c) => c * 0.7));
     for (let x = -33.4; x <= -22; x += 2.85) P(x, 1.3, 64.62, 0.06, 2.4, 0.06, [0.6, 0.6, 0.62], 0, true);
     I.bagGlass.quad(-27.75, 1.3, 64.6, 11.5, 2.4, 0);
@@ -693,7 +694,7 @@
     NC.addInteract({ x: -32.2, y: 1.2, z: 62.3, r: 1.5, label: 'Usar caixa eletrônico', kind: 'atm', use: () => NC.player.atm() });
     P(-15.2, 1.0, 64.6, 1.2, 2.0, 0.8, [0.15, 0.15, 0.17]); N(-15.2, 1.3, 64.18, 0.8, 0.3, 0.02, [1, 0.5, 0.2]);
     NC.colliderBox(-15.2, 1, 64.6, 1.2, 2, 0.8, 'coffee');
-    for (const z of [55, 59.5, 63.5]) NC.addLight(-24, 3.9, z, '#f4fbff', 1.5, 11, 3);
+    for (const z of [55, 59.5, 63.5]) NC.addLight(-24, 3.9, z, '#f4fbff', 1.1, 10, 3);
     addZone({ x0: -34, x1: -14, z0: 52.3, z1: 66, y0: -1, y1: 4.6, name: 'Neomart 24', indoor: true, chime: true });
     // outside
     W.addVending(-36.2, L.CURB, 51.5, Math.PI, 'cola'); W.addVending(-37.5, L.CURB, 51.5, Math.PI, 'noodle');

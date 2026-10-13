@@ -41,7 +41,7 @@
     const head = new THREE.SphereGeometry(0.5, 8, 6); head.scale(0.23, 0.27, 0.25);
     const torso = new THREE.CylinderGeometry(0.24, 0.19, 0.62, 6, 1); torso.scale(1, 1, 0.6); torso.rotateY(Math.PI / 6);
     const canopy = new THREE.ConeGeometry(0.6, 0.3, 12, 1, true);
-    const rim = new THREE.TorusGeometry(0.6, 0.018, 4, 24); rim.rotateX(Math.PI / 2);
+    const rim = new THREE.TorusGeometry(0.6, 0.018, 3, 16); rim.rotateX(Math.PI / 2);
     H.parts = {
       legL: mk(partGeo(0.15, 0.9, 0.17, true), std),
       legR: mk(partGeo(0.15, 0.9, 0.17, true), std),
@@ -61,15 +61,16 @@
     for (const k in H.parts) for (let i = 0; i < max; i++) H.parts[k].setMatrixAt(i, H.zero);
   };
 
-  function setColors(a) {
-    const i = a.i, P = H.parts;
+  function setColors(a, i) {
+    const P = H.parts;
     P.torso.setColorAt(i, a.cJ); P.armL.setColorAt(i, a.cJ); P.armR.setColorAt(i, a.cJ);
     P.legL.setColorAt(i, a.cP); P.legR.setColorAt(i, a.cP);
     P.head.setColorAt(i, a.cS); P.hair.setColorAt(i, a.cH);
     P.acc.setColorAt(i, a.cA); P.rim.setColorAt(i, a.cU); P.canopy.setColorAt(i, a.cC);
-    P.shaft.setColorAt(i, new THREE.Color(0.1, 0.1, 0.1)); P.phone.setColorAt(i, new THREE.Color(0.6, 1.2, 1.6));
-    for (const k in P) P[k].instanceColor.needsUpdate = true;
+    P.shaft.setColorAt(i, C_SHAFT); P.phone.setColorAt(i, C_PHONE);
+    H.colorDirty = true;
   }
+  const C_SHAFT = new THREE.Color(0.1, 0.1, 0.1), C_PHONE = new THREE.Color(0.6, 1.2, 1.6);
 
   H.add = function (o) {
     if (H.agents.length >= H.max) return null;
@@ -87,8 +88,8 @@
     a.cU = pick(ACC).clone().multiplyScalar(2.4);
     a.cC = chance(0.6) ? new THREE.Color(0.8, 0.85, 0.95) : pick(ACC).clone().multiplyScalar(0.6);
     if (o.yaw !== undefined) a.ry = o.yaw + Math.PI;
+    a.slot = -1;
     H.agents.push(a);
-    setColors(a);
     return a;
   };
 
@@ -178,7 +179,7 @@
   function hide(i) { for (const k in H.parts) H.parts[k].setMatrixAt(i, H.zero); }
 
   function pose(a, t, beat) {
-    const P = H.parts, i = a.i;
+    const P = H.parts, i = a.slot;
     let legL = 0, legR = 0, armL = 0.05, armR = 0.05, armLz = 0.06, armRz = -0.06, bob = 0, headX = 0, tilt = 0, hipY = 0.92, yOff = 0, armRy = 0, armLy = 0, headY = 0;
     let phone = false;
     const sw = a.anim;
@@ -234,7 +235,7 @@
       part(P.armR, i, 0.28, ty + 0.27, 0, armR, armRz, armRy);
       P.shaft.setMatrixAt(i, H.zero); P.canopy.setMatrixAt(i, H.zero); P.rim.setMatrixAt(i, H.zero);
     }
-    if (a.hasAcc) part(P.acc, i, a.eyes ? 0 : 0.1, a.eyes ? ty + 0.47 : ty + 0.05, a.accBack ? -0.13 : (a.eyes ? 0.13 : 0.125), 0, a.eyes ? Math.PI / 2 : 0);
+    if (a.hasAcc) part(P.acc, i, a.eyes ? 0 : 0.1, a.eyes ? ty + 0.47 : ty + 0.05, a.accBack ? -0.16 : (a.eyes ? 0.13 : 0.15), 0, a.eyes ? Math.PI / 2 : 0);
     else P.acc.setMatrixAt(i, H.zero);
     if (phone) part(P.phone, i, -0.12, ty + 0.42, 0.24, -0.4); else P.phone.setMatrixAt(i, H.zero);
   }
@@ -278,21 +279,26 @@
   H.update = function (t, dt, cam, ph, playerState) {
     const P = H.parts;
     const R2 = 150 * 150;
+    let k = 0;
     for (const a of H.agents) {
+      a.vis = false;
       if (a.kind === 'ped') {
-        if (a.active === false) { if (a.vis) { hide(a.i); a.vis = false; } continue; }
+        if (a.active === false) continue;
         stepPed(a, dt, ph);
       } else if (a.kind === 'player') {
-        if (!playerState.show) { if (a.vis) { hide(a.i); a.vis = false; } continue; }
+        if (!playerState.show) continue;
         a.x = playerState.x; a.y = playerState.y; a.z = playerState.z; a.ry = playerState.ry; a.anim = playerState.anim; a.speed = playerState.speed; a.seatH = playerState.seatH; a.umbrella = playerState.umbrella;
       }
       const dx = a.x - cam.x, dz = a.z - cam.z, dy = a.y - cam.y;
       const d2 = dx * dx + dz * dz;
-      if (d2 > R2 || (a.kind === 'npc' && d2 > 90 * 90) || Math.abs(dy) > 60) { if (a.vis) { hide(a.i); a.vis = false; } continue; }
+      if (d2 > R2 || (a.kind === 'npc' && d2 > 90 * 90) || Math.abs(dy) > 60) continue;
       a.vis = true;
+      if (a.slot !== k) { a.slot = k; setColors(a, k); }
+      k++;
       pose(a, t, ph);
     }
-    for (const k in P) P[k].instanceMatrix.needsUpdate = true;
+    for (const n in P) { P[n].count = k; P[n].instanceMatrix.needsUpdate = true; if (H.colorDirty) P[n].instanceColor.needsUpdate = true; }
+    H.colorDirty = false;
   };
 
   H.nearest = function (x, z, r) {
