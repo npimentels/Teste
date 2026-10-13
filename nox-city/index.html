@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Nox City</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@700;900&display=swap">
+<style>
+/* Layout: full-bleed canvas, HUD pinned to the four corners, touch controls on the bottom edge. */
+:root{
+  --ink:#05060d;
+  --panel:rgba(8,10,22,.72);
+  --line:rgba(120,240,255,.28);
+  --yellow:#f3e600;
+  --cyan:#5ef2ff;
+  --pink:#ff2bd6;
+  --text:#e9f1ff;
+  --dim:#8a93b8;
+  --red:#ff3b4e;
+  --f-display:"Chakra Petch","Rajdhani","Segoe UI",system-ui,sans-serif;
+  --f-mono:"Share Tech Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px);
+  --safe-r:env(safe-area-inset-right,0px);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--text);font-family:var(--f-display);overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none}
+#app{position:fixed;inset:0}
+#app canvas{display:block;width:100%;height:100%;touch-action:none}
+button{font-family:var(--f-display);color:inherit}
+button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.cut{clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+
+/* ---------- intro ---------- */
+#intro{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;justify-content:flex-end;padding:calc(24px + var(--safe-t)) 20px calc(28px + var(--safe-b));background:linear-gradient(180deg,rgba(5,6,13,.15) 0%,rgba(5,6,13,0) 35%,rgba(5,6,13,.55) 70%,rgba(5,6,13,.92) 100%);transition:opacity .9s ease}
+#intro.gone{opacity:0;pointer-events:none}
+#intro .brand{position:absolute;top:calc(22px + var(--safe-t));left:20px;right:20px}
+.logo{font-weight:700;font-size:clamp(44px,12vw,92px);line-height:.86;letter-spacing:-.02em;color:var(--yellow);text-shadow:3px 0 0 rgba(255,43,214,.7),-2px 0 0 rgba(94,242,255,.55);font-style:italic;transform:skewX(-6deg);margin:0}
+.logo small{display:block;font-size:.26em;letter-spacing:.42em;color:var(--cyan);font-style:normal;margin-top:.5em;text-shadow:none}
+.tag{margin-top:14px;padding-left:12px;border-left:2px solid var(--yellow);font-family:var(--f-mono);font-size:13px;line-height:1.5;color:var(--yellow);letter-spacing:.12em;text-transform:uppercase}
+.tag span{display:block;color:var(--dim);font-family:"Noto Sans JP",sans-serif;letter-spacing:.3em;font-size:11px}
+#intro .card{max-width:520px;display:grid;gap:14px}
+#intro p{margin:0;font-size:15px;line-height:1.5;color:#c9d2f0;max-width:46ch}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-family:var(--f-mono);font-size:12px;color:var(--dim)}
+.keys b{color:var(--cyan);font-weight:400}
+#loadbar{height:3px;background:rgba(255,255,255,.08);position:relative;overflow:hidden}
+#loadbar i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--pink),var(--yellow));transition:width .25s}
+#loadtxt{font-family:var(--f-mono);font-size:11px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+#enter{appearance:none;border:0;background:var(--yellow);color:#08070a;font-weight:700;font-size:18px;letter-spacing:.18em;padding:16px 22px;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;max-width:520px}
+#enter:disabled{opacity:.35;cursor:wait}
+#enter:not(:disabled):hover{background:#fff35a}
+#enter .k{font-family:var(--f-mono);font-size:12px;letter-spacing:.1em;opacity:.7}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10;opacity:0;transition:opacity .6s}
+#hud.on{opacity:1}
+#hud.photo .hide-photo,#hud.photo #tr .hb:not(#bPhoto){display:none!important}
+#info{position:absolute;top:calc(12px + var(--safe-t));left:calc(14px + var(--safe-l));display:grid;gap:2px;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+#zone{font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--yellow)}
+#sub{font-family:var(--f-mono);font-size:12px;color:var(--cyan);letter-spacing:.08em}
+#money{font-family:var(--f-mono);font-size:13px;color:var(--text);font-variant-numeric:tabular-nums}
+#money em{color:var(--yellow);font-style:normal}
+#buffs{font-family:var(--f-mono);font-size:11px;color:var(--pink);letter-spacing:.06em}
+#tr{position:absolute;top:calc(10px + var(--safe-t));right:calc(10px + var(--safe-r));display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:auto}
+#tr .row{display:flex;gap:6px}
+.hb{appearance:none;border:1px solid var(--line);background:var(--panel);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);width:44px;height:44px;display:grid;place-items:center;cursor:pointer;font-size:11px;font-family:var(--f-mono);letter-spacing:.04em;color:var(--cyan)}
+.hb svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8}
+.hb:active{background:rgba(94,242,255,.2)}
+#minimap{width:118px;height:118px;border-radius:50%;border:1px solid var(--line);background:rgba(5,6,13,.6)}
+#cross{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 0 6px rgba(94,242,255,.9)}
+#prompt{position:absolute;left:50%;bottom:calc(32% + var(--safe-b));transform:translateX(-50%);display:none;align-items:center;gap:10px;padding:9px 14px;background:var(--panel);border:1px solid rgba(243,230,0,.45);font-size:15px;letter-spacing:.04em;white-space:nowrap;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#prompt.on{display:flex}
+#prompt kbd{font-family:var(--f-mono);background:var(--yellow);color:#000;padding:1px 7px;font-size:13px}
+#toasts{position:absolute;left:50%;top:calc(76px + var(--safe-t));transform:translateX(-50%);display:grid;gap:6px;justify-items:center;width:min(92vw,460px)}
+.toast{background:var(--panel);border-left:3px solid var(--pink);padding:8px 12px;font-size:14px;line-height:1.35;animation:tin .35s ease;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);max-width:100%}
+.toast b{color:var(--yellow);font-weight:600}
+.toast.out{opacity:0;transform:translateY(-6px);transition:.4s}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+#subtitle{position:absolute;left:50%;bottom:calc(18% + var(--safe-b));transform:translateX(-50%);width:min(92vw,620px);text-align:center;font-size:16px;line-height:1.45;text-shadow:0 2px 8px #000,0 0 2px #000;display:none}
+#subtitle.on{display:block}
+#subtitle b{color:var(--cyan);font-weight:600;letter-spacing:.04em}
+
+/* ---------- touch ---------- */
+#touch{position:fixed;inset:0;z-index:9;display:none}
+body.is-touch #touch{display:block}
+body.is-touch #cross{display:none}
+#joy{position:absolute;width:128px;height:128px;border-radius:50%;border:1.5px solid rgba(94,242,255,.35);background:radial-gradient(circle,rgba(94,242,255,.08),rgba(5,6,13,.25));left:calc(28px + var(--safe-l));bottom:calc(34px + var(--safe-b));pointer-events:none;opacity:.55;transition:opacity .2s}
+#joy.act{opacity:1}
+#knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(94,242,255,.28);border:1.5px solid var(--cyan);box-shadow:0 0 18px rgba(94,242,255,.4)}
+.tbtn{position:absolute;appearance:none;border:1.5px solid rgba(255,255,255,.25);background:rgba(8,10,22,.55);color:var(--text);border-radius:50%;width:64px;height:64px;font-size:10px;letter-spacing:.03em;text-transform:uppercase;font-weight:600;pointer-events:auto;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.tbtn.on{border-color:var(--yellow);color:var(--yellow)}
+#tJump{right:calc(22px + var(--safe-r));bottom:calc(40px + var(--safe-b))}
+#tRun{right:calc(96px + var(--safe-r));bottom:calc(22px + var(--safe-b));width:58px;height:58px}
+#tUse{right:calc(30px + var(--safe-r));bottom:calc(118px + var(--safe-b));width:auto;min-width:64px;height:48px;border-radius:24px;padding:0 16px;border-color:var(--yellow);color:var(--yellow);display:none;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tUse.on{display:block}
+#tDown{right:calc(98px + var(--safe-r));bottom:calc(84px + var(--safe-b));width:48px;height:48px;display:none}
+
+/* ---------- panels ---------- */
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(3,4,10,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;padding:calc(16px + var(--safe-t)) 16px calc(16px + var(--safe-b));overflow:auto}
+.overlay.on{display:block}
+.sheet{max-width:640px;margin:0 auto;display:grid;gap:16px}
+.sheet h2{margin:0;font-size:22px;letter-spacing:.14em;text-transform:uppercase;color:var(--yellow);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.x{appearance:none;background:none;border:1px solid var(--line);width:40px;height:40px;color:var(--cyan);font-size:20px;cursor:pointer}
+.sec{font-family:var(--f-mono);font-size:11px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+.opts{display:grid;gap:10px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+.opt label{font-size:15px}
+.seg{display:flex;border:1px solid var(--line)}
+.seg button{appearance:none;background:none;border:0;padding:8px 10px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:var(--dim)}
+.seg button.on{background:var(--cyan);color:#000}
+input[type=range]{accent-color:var(--yellow);width:140px}
+#mapwrap{position:relative;border:1px solid var(--line);background:#060812;aspect-ratio:1/1;width:100%;max-width:640px}
+#mapc{width:100%;height:100%;display:block}
+.pois{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.poi{appearance:none;text-align:left;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);padding:10px 12px;cursor:pointer;display:grid;gap:3px}
+.poi:hover,.poi:active{border-color:var(--yellow)}
+.poi b{font-size:15px;color:var(--text)}
+.poi span{font-size:12px;color:var(--dim);line-height:1.35}
+.poi i{font-style:normal;font-family:var(--f-mono);font-size:10px;color:var(--pink);letter-spacing:.14em}
+#elev .floors{display:grid;gap:8px}
+#elev .floor{appearance:none;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:rgba(255,255,255,.04);border:1px solid rgba(94,242,255,.25);font-size:16px;cursor:pointer;text-align:left}
+#elev .floor small{font-family:var(--f-mono);color:var(--cyan);font-size:12px}
+#elev .floor.cur{opacity:.4;pointer-events:none}
+#shop .items{display:grid;gap:8px}
+#shop .item{appearance:none;display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:12px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);text-align:left;cursor:pointer}
+#shop .item b{font-size:16px}
+#shop .item em{font-style:normal;font-family:var(--f-mono);color:var(--yellow);grid-row:span 2;align-self:center;font-size:15px}
+#shop .item span{font-size:12px;color:var(--dim)}
+#shop .item:disabled{opacity:.35}
+#fade{position:fixed;inset:0;background:#000;z-index:40;opacity:0;pointer-events:none;transition:opacity .45s}
+#fade.on{opacity:1}
+#scope{position:fixed;inset:0;z-index:8;pointer-events:none;display:none;background:radial-gradient(circle at 50% 50%,transparent 0 34vmin,rgba(0,0,0,.92) 35vmin)}
+#scope.on{display:block}
+#scope::after{content:"ZOOM ×4 · TOQUE/E PARA SAIR";position:absolute;left:50%;bottom:calc(14% + var(--safe-b));transform:translateX(-50%);font-family:var(--f-mono);font-size:12px;letter-spacing:.2em;color:var(--cyan)}
+#fps{position:fixed;left:calc(8px + var(--safe-l));bottom:calc(4px + var(--safe-b));font-family:var(--f-mono);font-size:10px;color:var(--dim);z-index:11;pointer-events:none;display:none}
+@media (max-width:520px){
+  #info{max-width:calc(100vw - 150px)}
+  #zone{font-size:13px;line-height:1.2}
+  #sub{font-size:11px}
+  #tr .row{display:grid;grid-template-columns:repeat(2,40px);gap:6px}
+  #minimap{width:92px;height:92px}
+  .hb{width:40px;height:40px}
+}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}#intro{transition:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<section id="intro">
+  <div class="brand">
+    <h1 class="logo">NOX CITY<small>2 0 7 7</small></h1>
+    <div class="tag">A cidade nunca dorme<span>夜の街は、眠らない</span></div>
+  </div>
+  <div class="card">
+    <p>Uma metrópole viva debaixo de chuva: trânsito, gente na rua, pontes de neon, um sky lounge a 230 metros de altura, clube, ramen e konbini abertos a noite toda.</p>
+    <div class="keys" id="keysPc">
+      <b>WASD</b><span>andar · Shift corre · Espaço pula</span>
+      <b>Mouse</b><span>olhar (clique para capturar)</span>
+      <b>E</b><span>interagir · sentar · comprar</span>
+      <b>M / V / F</b><span>mapa · 1ª/3ª pessoa · modo foto</span>
+    </div>
+    <div class="keys" id="keysTouch" hidden>
+      <b>Esquerda</b><span>arraste para andar</span>
+      <b>Direita</b><span>arraste para olhar</span>
+      <b>Botões</b><span>pular, correr, interagir</span>
+      <b>Mapa</b><span>viaje rápido para os pontos da cidade</span>
+    </div>
+    <div id="loadbar"><i></i></div>
+    <div id="loadtxt">Carregando a cidade…</div>
+    <button id="enter" class="cut" disabled><span>Entrar na cidade</span><span class="k">ENTER</span></button>
+  </div>
+</section>
+
+<div id="hud">
+  <div id="info" class="hide-photo">
+    <div id="zone">Nox City</div>
+    <div id="sub">23:47 · chuva</div>
+    <div id="money">₵ <em>250</em></div>
+    <div id="buffs"></div>
+  </div>
+  <div id="tr">
+    <div class="row">
+      <button class="hb" id="bMap" aria-label="Mapa e viagem rápida"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></button>
+      <button class="hb" id="bView" aria-label="Alternar câmera">1ª</button>
+      <button class="hb" id="bPhoto" aria-label="Modo foto"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l2-3h4l2 3"/></svg></button>
+      <button class="hb" id="bMenu" aria-label="Configurações"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    </div>
+    <canvas id="minimap" class="hide-photo" width="236" height="236"></canvas>
+  </div>
+  <div id="cross" class="hide-photo"></div>
+  <div id="prompt" class="hide-photo"><kbd>E</kbd><span id="promptTxt"></span></div>
+  <div id="toasts"></div>
+  <div id="subtitle"></div>
+</div>
+
+<div id="touch">
+  <div id="joy"><div id="knob"></div></div>
+  <button class="tbtn" id="tJump">Pular</button>
+  <button class="tbtn" id="tRun">Correr</button>
+  <button class="tbtn" id="tUse">Usar</button>
+</div>
+
+<div id="scope"></div>
+
+<section class="overlay" id="mapUI" aria-label="Mapa">
+  <div class="sheet">
+    <h2>Mapa de Nox City <button class="x" data-close aria-label="Fechar">×</button></h2>
+    <div id="mapwrap"><canvas id="mapc" width="1024" height="1024"></canvas></div>
+    <div class="sec">Viagem rápida</div>
+    <div class="pois" id="poiList"></div>
+  </div>
+</section>
+
+<section class="overlay" id="menuUI" aria-label="Configurações">
+  <div class="sheet">
+    <h2>Configurações <button class="x" data-close aria-label="Fechar">×</button></h2>
+    <div class="opts">
+      <div class="opt"><label>Qualidade gráfica</label><div class="seg" id="optQ"><button data-v="low">Baixa</button><button data-v="medium">Média</button><button data-v="high">Alta</button></div></div>
+      <div class="opt"><label for="optSens">Sensibilidade do olhar</label><input type="range" id="optSens" min="0.3" max="2.5" step="0.1" value="1"></div>
+      <div class="opt"><label for="optVol">Volume</label><input type="range" id="optVol" min="0" max="1" step="0.05" value="0.8"></div>
+      <div class="opt"><label>Chuva</label><div class="seg" id="optRain"><button data-v="1">Ligada</button><button data-v="0">Desligada</button></div></div>
+      <div class="opt"><label>Trilha ambiente</label><div class="seg" id="optMusic"><button data-v="1">Ligada</button><button data-v="0">Desligada</button></div></div>
+      <div class="opt"><label>Mostrar FPS</label><div class="seg" id="optFps"><button data-v="1">Sim</button><button data-v="0">Não</button></div></div>
+    </div>
+    <div class="sec">Dica</div>
+    <p style="margin:0;color:var(--dim);line-height:1.5;font-size:14px">Pegue o elevador da Hyperion Tower até o Sky Lounge, ou suba ao Mirante no pilar da Ponte Neon. Use os binóculos nos pontos altos.</p>
+  </div>
+</section>
+
+<section class="overlay" id="elev" aria-label="Elevador">
+  <div class="sheet">
+    <h2><span id="elevTitle">Elevador</span> <button class="x" data-close aria-label="Fechar">×</button></h2>
+    <div class="floors" id="elevFloors"></div>
+  </div>
+</section>
+
+<section class="overlay" id="shop" aria-label="Loja">
+  <div class="sheet">
+    <h2><span id="shopTitle">Loja</span> <button class="x" data-close aria-label="Fechar">×</button></h2>
+    <div class="items" id="shopItems"></div>
+  </div>
+</section>
+
+<div id="fade"></div>
+<div id="fps"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/Pass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="js/core.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/materials.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/world.js"></script>
+<script src="js/interiors.js"></script>
+<script src="js/humans.js"></script>
+<script src="js/traffic.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/player.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
